@@ -63,22 +63,23 @@ static UIImage *kPointerCursor() {
     [super viewDidAppear:animated];
     //loadingSpinner.center = CGPointMake(CGRectGetMidX([UIScreen mainScreen].bounds), CGRectGetMidY([UIScreen mainScreen].bounds));
     [self webViewDidAppear];
-    if([[NSUserDefaults standardUserDefaults] objectForKey:@"favorites"] == nil) {
+    if([[NSUserDefaults standardUserDefaults] objectForKey:@"FAVORITES"] == nil) {
         NSArray *defaultFavs = @[
-            @{ @"title" : @"Yandex Video Search (Тел)", @"url" : @"https://tel.yandex.by/video/search?channelId=dmsuY29tO3B1YmxpYzIyOTU3ODU0Ng%3D%3D&how=tm&text=Фильмы" },
-            @{ @"title" : @"zona.plus movies", @"url" : @"https://w140.zona.plus/movies/" },
-            @{ @"title" : @"rt.mk24.life movies", @"url" : @"https://rt.mk24.life/movies/" },
-            @{ @"title" : @"kinogo-films.org", @"url" : @"https://kinogo-films.org" },
-            @{ @"title" : @"kinohodot.online", @"url" : @"https://kinohodot.online" },
+            // Format: @[ url, title ]
+            @[@"https://tel.yandex.by/video/search?channelId=dmsuY29tO3B1YmxpYzIyOTU3ODU0Ng%3D%3D&how=tm&text=Фильмы", @"Yandex Video Search (Тел)"],
+            @[@"https://w140.zona.plus/movies/", @"zona.plus movies"],
+            @[@"https://rt.mk24.life/movies/", @"rt.mk24.life movies"],
+            @[@"https://kinogo-films.org", @"kinogo-films.org"],
+            @[@"https://kinohodot.online", @"kinohodot.online"],
             // Playable streaming examples (public HLS samples)
-            @{ @"title" : @"Sintel (HLS sample)", @"url" : @"https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8" },
-            @{ @"title" : @"Mux test stream (HLS)", @"url" : @"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" }
+            @[@"https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", @"Sintel (HLS sample)"],
+            @[@"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", @"Mux test stream (HLS)"]
         ];
-        [[NSUserDefaults standardUserDefaults] setObject:defaultFavs forKey:@"favorites"];
+        [[NSUserDefaults standardUserDefaults] setObject:defaultFavs forKey:@"FAVORITES"];
         [[NSUserDefaults standardUserDefaults] synchronize];
 
         // Debug log so you can confirm defaults were written at launch
-        NSLog(@"Default favorites created: %@", defaultFavs);
+        NSLog(@"Default FAVORITES created: %@", defaultFavs);
     }
     _displayedHintsOnLaunch = YES;
 }
