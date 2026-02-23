@@ -63,6 +63,17 @@ static UIImage *kPointerCursor() {
     [super viewDidAppear:animated];
     //loadingSpinner.center = CGPointMake(CGRectGetMidX([UIScreen mainScreen].bounds), CGRectGetMidY([UIScreen mainScreen].bounds));
     [self webViewDidAppear];
+    if([[NSUserDefaults standardUserDefaults] objectForKey:@"favorites"] == nil) {
+        NSArray *defaultFavs = @[
+            @{ @"title" : @"Yandex Video Search (Тел)", @"url" : @"https://tel.yandex.by/video/search?channelId=dmsuY29tO3B1YmxpYzIyOTU3ODU0Ng%3D%3D&how=tm&text=Фильмы" },
+            @{ @"title" : @"zona.plus movies", @"url" : @"https://w140.zona.plus/movies/" },
+            @{ @"title" : @"rt.mk24.life movies", @"url" : @"https://rt.mk24.life/movies/" },
+            @{ @"title" : @"kinogo-films.org", @"url" : @"https://kinogo-films.org" },
+            @{ @"title" : @"kinohodot.online", @"url" : @"https://kinohodot.online" }
+        ];
+        [[NSUserDefaults standardUserDefaults] setObject:defaultFavs forKey:@"favorites"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    }
     _displayedHintsOnLaunch = YES;
 }
 -(void)webViewDidAppear {
