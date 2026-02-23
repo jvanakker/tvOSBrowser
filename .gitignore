@@ -66,3 +66,6 @@ fastlane/screenshots
 fastlane/test_output
 _Project/Availability.h
 _Project/Browser/ViewController.m.bak.*
+
+# local backups
+_Project/Browser/ViewController.m.bak.*
