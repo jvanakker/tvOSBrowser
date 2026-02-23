@@ -69,10 +69,16 @@ static UIImage *kPointerCursor() {
             @{ @"title" : @"zona.plus movies", @"url" : @"https://w140.zona.plus/movies/" },
             @{ @"title" : @"rt.mk24.life movies", @"url" : @"https://rt.mk24.life/movies/" },
             @{ @"title" : @"kinogo-films.org", @"url" : @"https://kinogo-films.org" },
-            @{ @"title" : @"kinohodot.online", @"url" : @"https://kinohodot.online" }
+            @{ @"title" : @"kinohodot.online", @"url" : @"https://kinohodot.online" },
+            // Playable streaming examples (public HLS samples)
+            @{ @"title" : @"Sintel (HLS sample)", @"url" : @"https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8" },
+            @{ @"title" : @"Mux test stream (HLS)", @"url" : @"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" }
         ];
         [[NSUserDefaults standardUserDefaults] setObject:defaultFavs forKey:@"favorites"];
         [[NSUserDefaults standardUserDefaults] synchronize];
+
+        // Debug log so you can confirm defaults were written at launch
+        NSLog(@"Default favorites created: %@", defaultFavs);
     }
     _displayedHintsOnLaunch = YES;
 }
@@ -142,7 +148,27 @@ static UIImage *kPointerCursor() {
     [self.webview setUserInteractionEnabled:NO];
 }
 -(void)viewDidLoad {
-    [super viewDidLoad];
+    
+    // --- Inserted: configure WKWebView for inline/autoplay media playback ---
+    // Make sure to add '#import <WebKit/WebKit.h>' at the top of the file if not present.
+    WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
+    cfg.allowsInlineMediaPlayback = YES;
+    if (@available(tvOS 10.0, *)) {
+        cfg.mediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypeNone;
+    } else {
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        cfg.requiresUserActionForMediaPlayback = NO;
+    #pragma clang diagnostic pop
+    }
+
+    // If you want to construct the web view here, use:
+    // self.webView = [[WKWebView alloc] initWithFrame:self.browserContainerView.bounds configuration:cfg];
+    // self.webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    // [self.browserContainerView addSubview:self.webView];
+    // self.webView.navigationDelegate = self;
+    // --- End inserted snippet ---
+[super viewDidLoad];
     self.definesPresentationContext = YES;
     
     [self initWebView];

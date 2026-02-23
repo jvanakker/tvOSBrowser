@@ -1,4 +1,6 @@
 //
+ (nonatomic, strong) WKWebView *webView;
+
 //  ViewController.h
 //  Browser
 //
