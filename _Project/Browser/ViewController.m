@@ -289,6 +289,41 @@ static UIImage *kPointerCursor() {
                                           alertControllerWithTitle:@"Advanced Menu"
                                           message:@""
                                           preferredStyle:UIAlertControllerStyleAlert];
+    // --- Inserted: add each favorite as a top-level menu item ---
+    NSArray *menuFavorites = [[NSUserDefaults standardUserDefaults] arrayForKey:@"FAVORITES"];
+    if (menuFavorites != nil && [menuFavorites isKindOfClass:[NSArray class]] && menuFavorites.count > 0) {
+        for (int mf = 0; mf < (int)menuFavorites.count; mf++) {
+            id item = menuFavorites[mf];
+            if (item == nil) continue;
+            NSString *fTitle = nil;
+            NSString *fURL = nil;
+            if ([item isKindOfClass:[NSArray class]] && [(NSArray*)item count] >= 2) {
+                fURL = ((NSArray*)item)[0];
+                fTitle = ((NSArray*)item)[1];
+            } else if ([item isKindOfClass:[NSDictionary class]]) {
+                fURL = ((NSDictionary*)item)[@"url"];
+                fTitle = ((NSDictionary*)item)[@"title"];
+            }
+            if (!fTitle || [fTitle length] == 0) fTitle = fURL;
+            if (!fURL || [fURL length] == 0) continue;
+            // Capture url/title for the block
+            NSString *urlToLoad = fURL;
+            NSString *titleToShow = fTitle;
+            UIAlertAction *favAction = [UIAlertAction actionWithTitle:titleToShow
+                                                                style:UIAlertActionStyleDefault
+                                                              handler:^(UIAlertAction *action) {
+                @try {
+                    [self.webview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:urlToLoad]]];
+                } @catch (NSException *ex) {
+                    NSLog(@"Failed to load favorite URL %@ : %@", urlToLoad, ex);
+                }
+            }];
+            [alertController addAction:favAction];
+        }
+        NSLog(@"Added %lu favorite(s) to Advanced Menu", (unsigned long)menuFavorites.count);
+    }
+    // --- End inserted block ---
+
     
     UIAlertAction *topBarAction;
     if(self.topMenuShowing == YES)
