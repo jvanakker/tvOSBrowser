@@ -348,6 +348,36 @@ static UIImage *kPointerCursor() {
                                           handler:^(UIAlertAction *action)
                                           {
                                               NSArray *indexableArray = [[NSUserDefaults standardUserDefaults] arrayForKey:@"FAVORITES"];
+                                              // Compatibility/fallback: if FAVORITES missing, try legacy 'favorites' (dicts) or create defaults
+                                              if (indexableArray == nil) {
+                                                  id legacy = [[NSUserDefaults standardUserDefaults] objectForKey:@"favorites"];
+                                                  if (legacy != nil && [legacy isKindOfClass:[NSArray class]] && [(NSArray*)legacy count] > 0 && [[(NSArray*)legacy objectAtIndex:0] isKindOfClass:[NSDictionary class]]) {
+                                                      NSMutableArray *converted = [NSMutableArray array];
+                                                      for (NSDictionary *d in (NSArray*)legacy) {
+                                                          NSString *u = d[@\"url\"] ? d[@\"url\"] : (d[@\"URL\"] ? d[@\"URL\"] : @\"\");
+                                                          NSString *t = d[@\"title\"] ? d[@\"title\"] : (d[@\"name\"] ? d[@\"name\"] : u);
+                                                          [converted addObject:@[u ? u : @\"\", t ? t : @\"\"]];
+                                                      }
+                                                      [[NSUserDefaults standardUserDefaults] setObject:converted forKey:@\"FAVORITES\"];
+                                                      [[NSUserDefaults standardUserDefaults] synchronize];
+                                                      indexableArray = [converted copy];
+                                                  } else {
+                                                      // create defaults in the expected format: array of [ url, title ]
+                                                      NSArray *defaults = @[
+                                                          @[@"https://tel.yandex.by/video/search?channelId=dmsuY29tO3B1YmxpYzIyOTU3ODU0Ng%3D%3D&how=tm&text=Фильмы", @"Yandex Video Search (Тел)"],
+                                                          @[@"https://w140.zona.plus/movies/", @"zona.plus movies"],
+                                                          @[@"https://rt.mk24.life/movies/", @"rt.mk24.life movies"],
+                                                          @[@"https://kinogo-films.org", @"kinogo-films.org"],
+                                                          @[@"https://kinohodot.online", @"kinohodot.online"],
+                                                          @[@"https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", @"Sintel (HLS sample)"],
+                                                          @[@"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", @"Mux test stream (HLS)"]
+                                                      ];
+                                                      [[NSUserDefaults standardUserDefaults] setObject:defaults forKey:@\"FAVORITES\"];
+                                                      [[NSUserDefaults standardUserDefaults] synchronize];
+                                                      indexableArray = defaults;
+                                                  }
+                                              }
+                                              NSLog(@\"Favorites menu will show: %@\", indexableArray);
                                               UIAlertController *historyAlertController = [UIAlertController
                                                                                            alertControllerWithTitle:@"Favorites"
                                                                                            message:@""
