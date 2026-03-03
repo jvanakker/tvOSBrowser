@@ -57,6 +57,13 @@
                                                 <constraint firstAttribute="width" constant="60" id="9Ct-0E-AWc"/>
                                             </constraints>
                                         </imageView>
+                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="multi-tab" translatesAutoresizingMaskIntoConstraints="NO" id="fRm-v6-CqZ">
+                                            <rect key="frame" x="408" y="8" width="60" height="60"/>
+                                            <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <constraints>
+                                                <constraint firstAttribute="width" constant="60" id="N6n-uD-kv6"/>
+                                            </constraints>
+                                        </imageView>
                                         <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="menu-2" translatesAutoresizingMaskIntoConstraints="NO" id="T1I-Df-T6Z">
                                             <rect key="frame" x="1852" y="10" width="60" height="60"/>
                                             <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
@@ -89,7 +96,6 @@
                                         <constraint firstItem="yS3-uH-0RA" firstAttribute="top" secondItem="vWz-fJ-GDT" secondAttribute="topMargin" id="FIC-yr-nux"/>
                                         <constraint firstItem="yS3-uH-0RA" firstAttribute="bottom" secondItem="scy-YG-AC5" secondAttribute="bottom" id="ISK-Md-u3q"/>
                                         <constraint firstItem="Cxn-R0-Z5t" firstAttribute="top" secondItem="T1I-Df-T6Z" secondAttribute="top" id="NHz-Zj-91O"/>
-                                        <constraint firstItem="M3M-jp-jrQ" firstAttribute="leading" secondItem="JCb-KB-JVN" secondAttribute="trailing" constant="61" id="Npw-Y2-e9R"/>
                                         <constraint firstItem="1BL-ob-AO6" firstAttribute="leading" secondItem="scy-YG-AC5" secondAttribute="trailing" constant="40" id="QQC-dT-9cx"/>
                                         <constraint firstItem="yS3-uH-0RA" firstAttribute="leading" secondItem="vWz-fJ-GDT" secondAttribute="leadingMargin" id="c6Q-vu-cy4"/>
                                         <constraint firstItem="yS3-uH-0RA" firstAttribute="top" secondItem="scy-YG-AC5" secondAttribute="top" id="eJe-LD-bcn"/>
@@ -98,9 +104,13 @@
                                         <constraint firstItem="JCb-KB-JVN" firstAttribute="leading" secondItem="1BL-ob-AO6" secondAttribute="trailing" constant="40" id="jRa-nj-yfz"/>
                                         <constraint firstItem="M3M-jp-jrQ" firstAttribute="centerX" secondItem="vWz-fJ-GDT" secondAttribute="centerX" id="kK8-z8-Cll"/>
                                         <constraint firstItem="0G8-YF-nRC" firstAttribute="top" secondItem="JCb-KB-JVN" secondAttribute="top" id="mt9-AT-GBk"/>
+                                        <constraint firstItem="fRm-v6-CqZ" firstAttribute="leading" secondItem="JCb-KB-JVN" secondAttribute="trailing" constant="40" id="oEU-7L-d8d"/>
+                                        <constraint firstItem="fRm-v6-CqZ" firstAttribute="top" secondItem="JCb-KB-JVN" secondAttribute="top" id="p0l-Mn-6uY"/>
+                                        <constraint firstItem="fRm-v6-CqZ" firstAttribute="bottom" secondItem="JCb-KB-JVN" secondAttribute="bottom" id="pL8-zM-lb6"/>
                                         <constraint firstItem="Cxn-R0-Z5t" firstAttribute="centerY" secondItem="M3M-jp-jrQ" secondAttribute="centerY" id="q3E-Xp-aPw"/>
                                         <constraint firstItem="T1I-Df-T6Z" firstAttribute="trailing" secondItem="vWz-fJ-GDT" secondAttribute="trailingMargin" id="qwi-cQ-s9W"/>
                                         <constraint firstItem="Cxn-R0-Z5t" firstAttribute="leading" secondItem="0G8-YF-nRC" secondAttribute="trailing" constant="33" id="r8R-Tz-GAO"/>
+                                        <constraint firstItem="M3M-jp-jrQ" firstAttribute="leading" secondItem="fRm-v6-CqZ" secondAttribute="trailing" constant="32" id="rEx-GH-m5c"/>
                                         <constraint firstItem="scy-YG-AC5" firstAttribute="top" secondItem="1BL-ob-AO6" secondAttribute="top" id="soq-LG-hxd"/>
                                         <constraint firstItem="scy-YG-AC5" firstAttribute="leading" secondItem="yS3-uH-0RA" secondAttribute="trailing" constant="40" id="tj6-Vh-R9B"/>
                                         <constraint firstItem="Cxn-R0-Z5t" firstAttribute="top" secondItem="vWz-fJ-GDT" secondAttribute="top" constant="10" id="xhS-az-cs6"/>
@@ -134,6 +144,7 @@
                         <outlet property="btnImageFullScreen" destination="Cxn-R0-Z5t" id="Kkk-pG-X3w"/>
                         <outlet property="btnImageHome" destination="JCb-KB-JVN" id="WDS-rx-NGR"/>
                         <outlet property="btnImageRefresh" destination="scy-YG-AC5" id="0BI-Zr-JtN"/>
+                        <outlet property="btnImageTabs" destination="fRm-v6-CqZ" id="rn2-Z2-n4m"/>
                         <outlet property="btnImgMenu" destination="T1I-Df-T6Z" id="EmH-Uk-RDQ"/>
                         <outlet property="lblUrlBar" destination="M3M-jp-jrQ" id="hhk-xq-hNc"/>
                         <outlet property="loadingSpinner" destination="0G8-YF-nRC" id="Pnl-7v-jdQ"/>
@@ -149,6 +160,7 @@
         <image name="go-back-left-arrow" width="192" height="192"/>
         <image name="house-outline" width="192" height="192"/>
         <image name="menu-2" width="192" height="192"/>
+        <image name="multi-tab" width="192" height="192"/>
         <image name="refresh-button" width="192" height="192"/>
         <image name="resize-arrows" width="192" height="192"/>
         <image name="right-arrow-forward" width="192" height="192"/>

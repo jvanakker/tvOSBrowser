@@ -15,8 +15,15 @@
 		3A2A7C1C21E783D00083CB13 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = 3A2A7C1B21E783D00083CB13 /* menu-button.png */; };
 		3A2A7C1E21E7842F0083CB13 /* menu-2.png in Resources */ = {isa = PBXBuildFile; fileRef = 3A2A7C1D21E7842E0083CB13 /* menu-2.png */; };
 		3A2A7C2021E784760083CB13 /* resize-arrows.png in Resources */ = {isa = PBXBuildFile; fileRef = 3A2A7C1F21E784760083CB13 /* resize-arrows.png */; };
+		3A2A7C2221E790000083CB13 /* multi-tab.png in Resources */ = {isa = PBXBuildFile; fileRef = 3A2A7C2121E790000083CB13 /* multi-tab.png */; };
+		3A2A7C2421E790000083CB13 /* plus.png in Resources */ = {isa = PBXBuildFile; fileRef = 3A2A7C2321E790000083CB13 /* plus.png */; };
 		9675E1FC20855F6500A4A84A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9675E1FB20855F6500A4A84A /* Foundation.framework */; };
 		9675E1FF20857AEF00A4A84A /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9675E1FE20857AEF00A4A84A /* UIKit.framework */; };
+		A1B49A482D67F2B3001D58A1 /* BrowserTabViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A472D67F2B3001D58A1 /* BrowserTabViewModel.m */; };
+		A1B49A4B2D67F2C3001D58A1 /* BrowserViewModel.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A4A2D67F2C3001D58A1 /* BrowserViewModel.m */; };
+		A1B49A4E2D680900001D58A1 /* BrowserNavigationService.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A4D2D680900001D58A1 /* BrowserNavigationService.m */; };
+		A1B49A552D68143D001D58A1 /* BrowserMenuPresenter.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A542D68143D001D58A1 /* BrowserMenuPresenter.m */; };
+		A1B49A582D6828D4001D58A1 /* BrowserSessionStore.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A572D6828D4001D58A1 /* BrowserSessionStore.m */; };
 		B002B8671BAE420500C744AF /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B8661BAE420500C744AF /* main.m */; };
 		B002B86A1BAE420500C744AF /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B8691BAE420500C744AF /* AppDelegate.m */; };
 		B002B86D1BAE420500C744AF /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B86C1BAE420500C744AF /* ViewController.m */; };
@@ -33,8 +40,20 @@
 		3A2A7C1B21E783D00083CB13 /* menu-button.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "menu-button.png"; sourceTree = "<group>"; };
 		3A2A7C1D21E7842E0083CB13 /* menu-2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "menu-2.png"; sourceTree = "<group>"; };
 		3A2A7C1F21E784760083CB13 /* resize-arrows.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "resize-arrows.png"; sourceTree = "<group>"; };
+		3A2A7C2121E790000083CB13 /* multi-tab.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "multi-tab.png"; sourceTree = "<group>"; };
+		3A2A7C2321E790000083CB13 /* plus.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = plus.png; sourceTree = "<group>"; };
 		9675E1FB20855F6500A4A84A /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		9675E1FE20857AEF00A4A84A /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		A1B49A462D67F2B3001D58A1 /* BrowserTabViewModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserTabViewModel.h; sourceTree = "<group>"; };
+		A1B49A472D67F2B3001D58A1 /* BrowserTabViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserTabViewModel.m; sourceTree = "<group>"; };
+		A1B49A492D67F2C3001D58A1 /* BrowserViewModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserViewModel.h; sourceTree = "<group>"; };
+		A1B49A4A2D67F2C3001D58A1 /* BrowserViewModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserViewModel.m; sourceTree = "<group>"; };
+		A1B49A4C2D680900001D58A1 /* BrowserNavigationService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserNavigationService.h; sourceTree = "<group>"; };
+		A1B49A4D2D680900001D58A1 /* BrowserNavigationService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserNavigationService.m; sourceTree = "<group>"; };
+		A1B49A532D68143D001D58A1 /* BrowserMenuPresenter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserMenuPresenter.h; sourceTree = "<group>"; };
+		A1B49A542D68143D001D58A1 /* BrowserMenuPresenter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserMenuPresenter.m; sourceTree = "<group>"; };
+		A1B49A562D6828D4001D58A1 /* BrowserSessionStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserSessionStore.h; sourceTree = "<group>"; };
+		A1B49A572D6828D4001D58A1 /* BrowserSessionStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserSessionStore.m; sourceTree = "<group>"; };
 		B002B8621BAE420500C744AF /* Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Browser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B002B8661BAE420500C744AF /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		B002B8681BAE420500C744AF /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -65,6 +84,8 @@
 			children = (
 				3A2A7C1D21E7842E0083CB13 /* menu-2.png */,
 				3A2A7C1F21E784760083CB13 /* resize-arrows.png */,
+				3A2A7C2121E790000083CB13 /* multi-tab.png */,
+				3A2A7C2321E790000083CB13 /* plus.png */,
 				3A2A7C1B21E783D00083CB13 /* menu-button.png */,
 				3A2A7C1121E7805D0083CB13 /* go-back-left-arrow.png */,
 				3A2A7C1221E7805D0083CB13 /* house-outline.png */,
@@ -108,6 +129,16 @@
 			children = (
 				B002B8681BAE420500C744AF /* AppDelegate.h */,
 				B002B8691BAE420500C744AF /* AppDelegate.m */,
+				A1B49A462D67F2B3001D58A1 /* BrowserTabViewModel.h */,
+				A1B49A472D67F2B3001D58A1 /* BrowserTabViewModel.m */,
+				A1B49A532D68143D001D58A1 /* BrowserMenuPresenter.h */,
+				A1B49A542D68143D001D58A1 /* BrowserMenuPresenter.m */,
+				A1B49A4C2D680900001D58A1 /* BrowserNavigationService.h */,
+				A1B49A4D2D680900001D58A1 /* BrowserNavigationService.m */,
+				A1B49A562D6828D4001D58A1 /* BrowserSessionStore.h */,
+				A1B49A572D6828D4001D58A1 /* BrowserSessionStore.m */,
+				A1B49A492D67F2C3001D58A1 /* BrowserViewModel.h */,
+				A1B49A4A2D67F2C3001D58A1 /* BrowserViewModel.m */,
 				B002B86B1BAE420500C744AF /* ViewController.h */,
 				B002B86C1BAE420500C744AF /* ViewController.m */,
 				3A2A7C0621E77E2C0083CB13 /* MenuIcons */,
@@ -160,7 +191,6 @@
 				TargetAttributes = {
 					B002B8611BAE420500C744AF = {
 						CreatedOnToolsVersion = 7.1;
-						DevelopmentTeam = H7W77QXGX2;
 					};
 				};
 			};
@@ -189,6 +219,8 @@
 			files = (
 				3A2A7C1C21E783D00083CB13 /* menu-button.png in Resources */,
 				3A2A7C2021E784760083CB13 /* resize-arrows.png in Resources */,
+				3A2A7C2221E790000083CB13 /* multi-tab.png in Resources */,
+				3A2A7C2421E790000083CB13 /* plus.png in Resources */,
 				B002B8721BAE420500C744AF /* Assets.xcassets in Resources */,
 				B002B8701BAE420500C744AF /* Main.storyboard in Resources */,
 				3A2A7C1821E7805D0083CB13 /* right-arrow-forward.png in Resources */,
@@ -223,6 +255,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B49A482D67F2B3001D58A1 /* BrowserTabViewModel.m in Sources */,
+				A1B49A552D68143D001D58A1 /* BrowserMenuPresenter.m in Sources */,
+				A1B49A4E2D680900001D58A1 /* BrowserNavigationService.m in Sources */,
+				A1B49A582D6828D4001D58A1 /* BrowserSessionStore.m in Sources */,
+				A1B49A4B2D67F2C3001D58A1 /* BrowserViewModel.m in Sources */,
 				B002B86D1BAE420500C744AF /* ViewController.m in Sources */,
 				B002B86A1BAE420500C744AF /* AppDelegate.m in Sources */,
 				B002B8671BAE420500C744AF /* main.m in Sources */,
@@ -360,6 +397,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = PMC4RZG4LF;
 				EMBED_ASSET_PACKS_IN_PRODUCT_BUNDLE = YES;
 				ENABLE_ON_DEMAND_RESOURCES = NO;
 				FRAMEWORK_SEARCH_PATHS = "";
@@ -368,7 +406,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dreampiggy.tvbrowser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jva.tvbrowser;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = NO;
 				TVOS_DEPLOYMENT_TARGET = 15.6;
@@ -382,6 +420,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = PMC4RZG4LF;
 				EMBED_ASSET_PACKS_IN_PRODUCT_BUNDLE = YES;
 				ENABLE_ON_DEMAND_RESOURCES = NO;
 				FRAMEWORK_SEARCH_PATHS = "";
@@ -390,7 +429,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dreampiggy.tvbrowser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jva.tvbrowser;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = NO;
 				TVOS_DEPLOYMENT_TARGET = 15.6;

@@ -17,7 +17,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1119"
             endingLineNumber = "1119"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-webView:didFailLoadWithError:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -34,7 +34,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1083"
             endingLineNumber = "1083"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-webView:shouldStartLoadWithRequest:navigationType:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -51,7 +51,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "175"
             endingLineNumber = "175"
-            landmarkName = "-textFontSize"
+            landmarkName = "-browserRecreateActiveWebViewPreservingCurrentURL"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -68,24 +68,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "989"
             endingLineNumber = "989"
-            landmarkName = "-showHintsAlert"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "600AF088-357D-49AE-971C-4A5E63C8278A"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Browser/ViewController.m"
-            timestampString = "568823870.7527961"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "132"
-            endingLineNumber = "132"
-            landmarkName = "-viewDidLoad"
+            landmarkName = "-requestURLorSearchInput"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -102,7 +85,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "161"
             endingLineNumber = "161"
-            landmarkName = "-viewDidLoad"
+            landmarkName = "-browserHideTopNav"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -119,7 +102,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "145"
             endingLineNumber = "145"
-            landmarkName = "-viewDidLoad"
+            landmarkName = "-browserLoadHomePage"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -136,7 +119,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1127"
             endingLineNumber = "1127"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-webView:didFailLoadWithError:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -153,7 +136,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1140"
             endingLineNumber = "1140"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-webView:didFailLoadWithError:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -170,7 +153,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1138"
             endingLineNumber = "1138"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-webView:didFailLoadWithError:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -187,7 +170,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1175"
             endingLineNumber = "1175"
-            landmarkName = "-pressesEnded:withEvent:"
+            landmarkName = "-toggleMode"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

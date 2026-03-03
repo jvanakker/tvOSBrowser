@@ -9,7 +9,7 @@
 #import <UIKit/UIKit.h>
 #import <GameKit/GameKit.h>
 
-@interface ViewController : GCEventViewController
+@interface ViewController : GCEventViewController <UIScrollViewDelegate>
 
 @property (nonatomic, retain) IBOutlet UIVisualEffectView *topMenuView;
 @property (nonatomic, retain) IBOutlet UIView *browserContainerView;
@@ -18,6 +18,7 @@
 @property (nonatomic, retain) IBOutlet UIImageView *btnImageForward;
 @property (nonatomic, retain) IBOutlet UIImageView *btnImageRefresh;
 @property (nonatomic, retain) IBOutlet UIImageView *btnImageHome;
+@property (nonatomic, retain) IBOutlet UIImageView *btnImageTabs;
 @property (nonatomic, retain) IBOutlet UIImageView *btnImageFullScreen;
 @property (nonatomic, retain) IBOutlet UIImageView *btnImgMenu;
 @property (nonatomic, retain) IBOutlet UILabel     *lblUrlBar;
@@ -26,4 +27,3 @@
 
 
 @end
-
