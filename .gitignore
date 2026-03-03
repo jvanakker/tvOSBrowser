@@ -25,6 +25,8 @@ _Project/build/
 build/
 _Project/DerivedData/
 DerivedData/
+.derived/
+.derived-device/
 
 ## Various settings
 *.pbxuser

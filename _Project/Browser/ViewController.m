@@ -13,7 +13,7 @@
 
 #pragma mark - UI
 
-static UIColor *kTextColor() {
+static UIColor *kTextColor(void) {
     if (@available(tvOS 13, *)) {
         return UIColor.labelColor;
     } else {
@@ -21,7 +21,7 @@ static UIColor *kTextColor() {
     }
 }
 
-static UIImage *kDefaultCursor() {
+static UIImage *kDefaultCursor(void) {
     static UIImage *image;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -30,7 +30,7 @@ static UIImage *kDefaultCursor() {
     return image;
 }
 
-static UIImage *kPointerCursor() {
+static UIImage *kPointerCursor(void) {
     static UIImage *image;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -105,11 +105,7 @@ static UIImage *kPointerCursor() {
     [self.webview setLayoutMargins:UIEdgeInsetsZero];
     UIScrollView *scrollView = [self.webview scrollView];
     [scrollView setLayoutMargins:UIEdgeInsetsZero];
-    if (@available(tvOS 11.0, *)) {
-        scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-    } else {
-        self.automaticallyAdjustsScrollViewInsets = NO;
-    }
+    scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
     
     NSNumber *showTopNavBar = [[NSUserDefaults standardUserDefaults] objectForKey:@"ShowTopNavigationBar"];
     self.topMenuView.hidden = !(showTopNavBar ? showTopNavBar.boolValue : YES);
