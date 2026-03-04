@@ -1,15 +1,11 @@
 # OS X
 .DS_Store
 
-## User settings
+## Xcode user settings
 xcuserdata/
 *.xcuserstate
-
-## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
 *.xcscmblueprint
 *.xccheckout
-
-## compatibility with Xcode 3 and earlier (ignoring not required starting Xcode 4)
 *.moved-aside
 *.pbxuser
 !default.pbxuser
@@ -20,40 +16,32 @@ xcuserdata/
 *.perspectivev3
 !default.perspectivev3
 
-## Build generated
+## Build output
 _Project/build/
 build/
 _Project/DerivedData/
 DerivedData/
+.clang-module-cache/
 .derived/
 .derived-device/
 
-## Various settings
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
-
-## Other
-*.moved-aside
-*.xccheckout
-*.xcscmblueprint
-
-## Obj-C/Swift specific
+## Apple toolchain artefacts
 *.hmap
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.xcresult
+*.xctestrun
+.swiftpm/
+.build/
+
+## Local editor settings
+.vscode/
+.idea/
 
 ## Playgrounds
 timeline.xctimeline
 playground.xcworkspace
-
 
 # fastlane
 #

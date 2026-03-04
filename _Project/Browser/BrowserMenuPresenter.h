@@ -19,6 +19,7 @@
 - (void)browserCaptureSnapshotForCurrentTab;
 - (void)browserRecreateActiveWebViewPreservingCurrentURL;
 - (void)browserBringCursorToFront;
+- (void)browserPlayVideoUnderCursorIfAvailable;
 
 @end
 

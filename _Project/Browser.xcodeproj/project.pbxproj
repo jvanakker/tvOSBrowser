@@ -31,6 +31,9 @@
 		A1B49A612D6A1000001D58A1 /* BrowserWKWebViewProofOfConceptViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A602D6A1000001D58A1 /* BrowserWKWebViewProofOfConceptViewController.m */; };
 		A1B49A662D6A7500001D58A1 /* AVPlayerViewController+BrowserFullscreenBlock.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A652D6A7500001D58A1 /* AVPlayerViewController+BrowserFullscreenBlock.m */; };
 		A1B49A682D6AD500001D58A1 /* UIApplication+BrowserSelectPressForwarding.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A672D6AD500001D58A1 /* UIApplication+BrowserSelectPressForwarding.m */; };
+		A1B49A6C2D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A6B2D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.m */; };
+		A1B49A722D6B7000001D58A1 /* BrowserYouTubeExtractor.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A712D6B7000001D58A1 /* BrowserYouTubeExtractor.m */; };
+		A1B49A742D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B49A732D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.m */; };
 		B002B8671BAE420500C744AF /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B8661BAE420500C744AF /* main.m */; };
 		B002B86A1BAE420500C744AF /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B8691BAE420500C744AF /* AppDelegate.m */; };
 		B002B86D1BAE420500C744AF /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B002B86C1BAE420500C744AF /* ViewController.m */; };
@@ -70,6 +73,12 @@
 		A1B49A602D6A1000001D58A1 /* BrowserWKWebViewProofOfConceptViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserWKWebViewProofOfConceptViewController.m; sourceTree = "<group>"; };
 		A1B49A652D6A7500001D58A1 /* AVPlayerViewController+BrowserFullscreenBlock.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "AVPlayerViewController+BrowserFullscreenBlock.m"; sourceTree = "<group>"; };
 		A1B49A672D6AD500001D58A1 /* UIApplication+BrowserSelectPressForwarding.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIApplication+BrowserSelectPressForwarding.m"; sourceTree = "<group>"; };
+		A1B49A692D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserNativeVideoPlayerViewController.h; sourceTree = "<group>"; };
+		A1B49A6B2D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserNativeVideoPlayerViewController.m; sourceTree = "<group>"; };
+		A1B49A732D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserNativeVideoAssetLoader.m; sourceTree = "<group>"; };
+		A1B49A752D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserNativeVideoAssetLoader.h; sourceTree = "<group>"; };
+		A1B49A702D6B7000001D58A1 /* BrowserYouTubeExtractor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BrowserYouTubeExtractor.h; sourceTree = "<group>"; };
+		A1B49A712D6B7000001D58A1 /* BrowserYouTubeExtractor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BrowserYouTubeExtractor.m; sourceTree = "<group>"; };
 		B002B8621BAE420500C744AF /* Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Browser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B002B8661BAE420500C744AF /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		B002B8681BAE420500C744AF /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -155,6 +164,12 @@
 				A1B49A572D6828D4001D58A1 /* BrowserSessionStore.m */,
 				A1B49A592D684000001D58A1 /* BrowserTopBarView.h */,
 				A1B49A5A2D684000001D58A1 /* BrowserTopBarView.m */,
+				A1B49A692D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.h */,
+				A1B49A6B2D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.m */,
+				A1B49A752D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.h */,
+				A1B49A732D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.m */,
+				A1B49A702D6B7000001D58A1 /* BrowserYouTubeExtractor.h */,
+				A1B49A712D6B7000001D58A1 /* BrowserYouTubeExtractor.m */,
 				A1B49A652D6A7500001D58A1 /* AVPlayerViewController+BrowserFullscreenBlock.m */,
 				A1B49A672D6AD500001D58A1 /* UIApplication+BrowserSelectPressForwarding.m */,
 				A1B49A642D6A3900001D58A1 /* BrowserWebView.h */,
@@ -285,6 +300,9 @@
 				A1B49A4E2D680900001D58A1 /* BrowserNavigationService.m in Sources */,
 				A1B49A582D6828D4001D58A1 /* BrowserSessionStore.m in Sources */,
 				A1B49A5B2D684000001D58A1 /* BrowserTopBarView.m in Sources */,
+				A1B49A6C2D6B1000001D58A1 /* BrowserNativeVideoPlayerViewController.m in Sources */,
+				A1B49A722D6B7000001D58A1 /* BrowserYouTubeExtractor.m in Sources */,
+				A1B49A742D6C1000001D58A1 /* BrowserNativeVideoAssetLoader.m in Sources */,
 				A1B49A662D6A7500001D58A1 /* AVPlayerViewController+BrowserFullscreenBlock.m in Sources */,
 				A1B49A682D6AD500001D58A1 /* UIApplication+BrowserSelectPressForwarding.m in Sources */,
 				A1B49A632D6A3800001D58A1 /* BrowserWebView.m in Sources */,

@@ -31,9 +31,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)goBack;
 - (void)goForward;
 - (nullable NSString *)stringByEvaluatingJavaScriptFromString:(NSString * _Nonnull)script;
+- (NSString * _Nonnull)runtimeMediaPreferenceReport;
 - (void)setUserAgent:(NSString * _Nullable)userAgent;
 
 + (nullable NSData *)cookieDataRepresentation;
++ (NSArray<NSHTTPCookie *> * _Nonnull)allCookies;
 + (void)restoreCookiesFromData:(NSData * _Nullable)cookieData;
 + (void)clearCachedDataWithCompletion:(void (^ _Nullable)(void))completion;
 + (void)clearCookiesWithCompletion:(void (^ _Nullable)(void))completion;

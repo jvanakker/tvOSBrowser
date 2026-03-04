@@ -10,7 +10,9 @@
 
 
 #import "BrowserMenuPresenter.h"
+#import "BrowserNativeVideoPlayerViewController.h"
 #import "BrowserSessionStore.h"
+#import "BrowserYouTubeExtractor.h"
 #import "ViewController.h"
 #import "BrowserNavigationService.h"
 #import "BrowserTabViewModel.h"
@@ -72,6 +74,10 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 @property (readonly) BOOL topMenuShowing;
 @property (readonly) CGFloat topMenuBrowserOffset;
 @property UIPanGestureRecognizer *manualScrollPanRecognizer;
+@property CADisplayLink *manualScrollDisplayLink;
+@property CGPoint manualScrollVelocity;
+@property CFTimeInterval manualScrollLastTimestamp;
+@property CFTimeInterval manualScrollLastMovementTimestamp;
 @property UITapGestureRecognizer *playPauseDoubleTapRecognizer;
 @property BrowserMenuPresenter *menuPresenter;
 @property BrowserNavigationService *navigationService;
@@ -88,12 +94,81 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 @property CFTimeInterval lastDirectSelectPressTimestamp;
 @property CFTimeInterval lastSelectPressTimestamp;
 @property BOOL awaitingSecondSelectPress;
+@property (nonatomic, strong) BrowserYouTubeExtractor *youTubeExtractor;
 
 @end
 
 @implementation ViewController
 
+- (BOOL)applyManualScrollDelta:(CGPoint)delta {
+    UIScrollView *scrollView = [self.webview scrollView];
+    if (scrollView == nil) {
+        return NO;
+    }
+
+    CGPoint contentOffset = scrollView.contentOffset;
+    CGFloat maxOffsetX = MAX(0.0, scrollView.contentSize.width - CGRectGetWidth(scrollView.bounds));
+    CGFloat maxOffsetY = MAX(0.0, scrollView.contentSize.height - CGRectGetHeight(scrollView.bounds));
+    CGFloat nextOffsetX = MIN(MAX(contentOffset.x + delta.x, 0.0), maxOffsetX);
+    CGFloat nextOffsetY = MIN(MAX(contentOffset.y + delta.y, 0.0), maxOffsetY);
+    CGPoint nextOffset = CGPointMake(nextOffsetX, nextOffsetY);
+    [scrollView setContentOffset:nextOffset animated:NO];
+    return !CGPointEqualToPoint(contentOffset, nextOffset);
+}
+
+- (void)stopManualScrollInertia {
+    [self.manualScrollDisplayLink invalidate];
+    self.manualScrollDisplayLink = nil;
+    self.manualScrollVelocity = CGPointZero;
+    self.manualScrollLastTimestamp = 0;
+    self.manualScrollLastMovementTimestamp = 0;
+}
+
+- (void)startManualScrollInertiaWithVelocity:(CGPoint)velocity {
+    [self stopManualScrollInertia];
+
+    if (fabs(velocity.x) < 25.0 && fabs(velocity.y) < 25.0) {
+        return;
+    }
+
+    self.manualScrollVelocity = velocity;
+    self.manualScrollLastTimestamp = 0;
+    self.manualScrollDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleManualScrollDisplayLink:)];
+    [self.manualScrollDisplayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+}
+
+- (void)handleManualScrollDisplayLink:(CADisplayLink *)displayLink {
+    if (self.cursorMode || self.tabOverviewVisible) {
+        [self stopManualScrollInertia];
+        return;
+    }
+
+    if (self.manualScrollLastTimestamp <= 0) {
+        self.manualScrollLastTimestamp = displayLink.timestamp;
+        return;
+    }
+
+    CFTimeInterval deltaTime = displayLink.timestamp - self.manualScrollLastTimestamp;
+    self.manualScrollLastTimestamp = displayLink.timestamp;
+
+    CGPoint step = CGPointMake(self.manualScrollVelocity.x * deltaTime, self.manualScrollVelocity.y * deltaTime);
+    BOOL didMove = [self applyManualScrollDelta:step];
+
+    CGFloat decay = pow(0.92, deltaTime * 60.0);
+    self.manualScrollVelocity = CGPointMake(self.manualScrollVelocity.x * decay, self.manualScrollVelocity.y * decay);
+
+    if (!didMove ||
+        (fabs(self.manualScrollVelocity.x) < 10.0 && fabs(self.manualScrollVelocity.y) < 10.0)) {
+        [self stopManualScrollInertia];
+        [self persistBrowserSession];
+    }
+}
+
 - (void)handleGlobalSelectPressEndedNotification:(NSNotification *)notification {
+    if (self.presentedViewController != nil) {
+        return;
+    }
+
     if ((CACurrentMediaTime() - self.lastDirectSelectPressTimestamp) < 0.15) {
         return;
     }
@@ -108,6 +183,10 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 
     self.awaitingSecondSelectPress = NO;
     self.lastTouchLocation = CGPointMake(-1, -1);
+
+    if (self.presentedViewController != nil) {
+        return;
+    }
 
     if (self.tabOverviewVisible) {
         [self handleTabOverviewSelectionAtPoint:self.cursorView.frame.origin];
@@ -231,6 +310,17 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 
 - (void)browserBringCursorToFront {
     [self.view bringSubviewToFront:self.cursorView];
+}
+
+- (void)browserPlayVideoUnderCursorIfAvailable {
+    [self playVideoUnderCursorIfAvailable];
+}
+
+- (BrowserYouTubeExtractor *)youTubeExtractor {
+    if (_youTubeExtractor == nil) {
+        _youTubeExtractor = [BrowserYouTubeExtractor new];
+    }
+    return _youTubeExtractor;
 }
 
 - (void)handleApplicationWillResignActive:(NSNotification *)notification {
@@ -381,6 +471,43 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
     return [self.webview stringByEvaluatingJavaScriptFromString:script];
 }
 
+- (NSString *)evaluateEditableElementJavaScriptAtPoint:(CGPoint)point body:(NSString *)body {
+    NSString *wrappedBody = [NSString stringWithFormat:
+                             @"function browserIsEditableCandidate(element) {"
+                                 "if (!element) { return false; }"
+                                 "var tagName = element.tagName ? element.tagName.toLowerCase() : '';"
+                                 "if (element.matches && element.matches(editableSelector)) { return true; }"
+                                 "if (tagName === 'textarea' || tagName === 'select') { return true; }"
+                                 "if (element.isContentEditable) { return true; }"
+                                 "return false;"
+                             "}"
+                             "function browserEditableTarget() {"
+                                 "var stored = window.__browserLastEditableElement;"
+                                 "if (stored && stored.isConnected && browserIsEditableCandidate(stored)) { return stored; }"
+                                 "var active = document.activeElement;"
+                                 "if (active && browserIsEditableCandidate(active)) {"
+                                     "window.__browserLastEditableElement = active;"
+                                     "return active;"
+                                 "}"
+                                 "var candidate = editableElement || interactiveElement || resolvedElement;"
+                                 "if (candidate && browserIsEditableCandidate(candidate)) {"
+                                     "window.__browserLastEditableElement = candidate;"
+                                     "return candidate;"
+                                 "}"
+                                 "if (candidate && candidate.closest) {"
+                                     "var fallback = candidate.closest(editableSelector) || candidate.closest('textarea, select');"
+                                     "if (fallback && browserIsEditableCandidate(fallback)) {"
+                                         "window.__browserLastEditableElement = fallback;"
+                                         "return fallback;"
+                                     "}"
+                                 "}"
+                                 "return null;"
+                             "}"
+                             "%@",
+                             body];
+    return [self evaluateResolvedElementJavaScriptAtPoint:point body:wrappedBody];
+}
+
 - (NSString *)evaluateHoverStateJavaScriptAtPoint:(CGPoint)point {
     NSInteger pointX = (NSInteger)llround(point.x);
     NSInteger pointY = (NSInteger)llround(point.y);
@@ -408,6 +535,306 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
     escapedString = [escapedString stringByReplacingOccurrencesOfString:@"\u2028" withString:@"\\u2028"];
     escapedString = [escapedString stringByReplacingOccurrencesOfString:@"\u2029" withString:@"\\u2029"];
     return escapedString;
+}
+
+- (NSDictionary *)JSONObjectFromJavaScriptString:(NSString *)string {
+    if (string.length == 0) {
+        return nil;
+    }
+
+    NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
+    if (data == nil) {
+        return nil;
+    }
+
+    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![object isKindOfClass:[NSDictionary class]]) {
+        return nil;
+    }
+
+    return object;
+}
+
+- (NSDictionary *)videoInfoAtDOMPoint:(CGPoint)point {
+    NSString *result = [self evaluateResolvedElementJavaScriptAtPoint:point
+                                                                 body:@"function browserAbsoluteURL(url) {"
+                                                                      "if (!url) { return ''; }"
+                                                                      "try { return String(new URL(url, document.baseURI).toString()); } catch (error) { return String(url); }"
+                                                                      "}"
+                                                                      "function browserVideoContainsPoint(video) {"
+                                                                          "if (!video || typeof video.getBoundingClientRect !== 'function') { return false; }"
+                                                                          "var rect = video.getBoundingClientRect();"
+                                                                          "return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;"
+                                                                      "}"
+                                                                      "function browserResolveVideoElement() {"
+                                                                          "var candidate = resolvedElement;"
+                                                                          "while (candidate) {"
+                                                                              "if (candidate.tagName && candidate.tagName.toLowerCase() === 'video') { return candidate; }"
+                                                                              "candidate = candidate.parentElement;"
+                                                                          "}"
+                                                                          "var videos = document.querySelectorAll('video');"
+                                                                          "var bestVisibleVideo = null;"
+                                                                          "var bestVisibleArea = 0;"
+                                                                          "for (var i = 0; i < videos.length; i++) {"
+                                                                              "var video = videos[i];"
+                                                                              "if (browserVideoContainsPoint(video)) { return video; }"
+                                                                              "if (!video || typeof video.getBoundingClientRect !== 'function') { continue; }"
+                                                                              "var rect = video.getBoundingClientRect();"
+                                                                              "var visibleWidth = Math.max(0, Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0));"
+                                                                              "var visibleHeight = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));"
+                                                                              "var visibleArea = visibleWidth * visibleHeight;"
+                                                                              "if (visibleArea <= 0) { continue; }"
+                                                                              "if (!video.paused && !video.ended && video.readyState >= 2) { return video; }"
+                                                                              "if (visibleArea > bestVisibleArea) {"
+                                                                                  "bestVisibleArea = visibleArea;"
+                                                                                  "bestVisibleVideo = video;"
+                                                                              "}"
+                                                                          "}"
+                                                                          "return bestVisibleVideo;"
+                                                                      "}"
+                                                                      "function browserResolvePrimarySource(video) {"
+                                                                          "if (!video) { return ''; }"
+                                                                          "if (video.currentSrc) { return browserAbsoluteURL(video.currentSrc); }"
+                                                                          "if (video.src) { return browserAbsoluteURL(video.src); }"
+                                                                          "var sources = video.querySelectorAll('source');"
+                                                                          "for (var i = 0; i < sources.length; i++) {"
+                                                                              "var sourceSrc = sources[i].src || sources[i].getAttribute('src') || '';"
+                                                                              "if (sourceSrc) { return browserAbsoluteURL(sourceSrc); }"
+                                                                          "}"
+                                                                          "return '';"
+                                                                      "}"
+                                                                      "function browserResolveSourceList(video) {"
+                                                                          "var values = [];"
+                                                                          "if (!video) { return values; }"
+                                                                          "if (video.currentSrc) { values.push(browserAbsoluteURL(video.currentSrc)); }"
+                                                                          "if (video.src && values.indexOf(browserAbsoluteURL(video.src)) === -1) { values.push(browserAbsoluteURL(video.src)); }"
+                                                                          "var sources = video.querySelectorAll('source');"
+                                                                          "for (var i = 0; i < sources.length; i++) {"
+                                                                              "var sourceSrc = sources[i].src || sources[i].getAttribute('src') || '';"
+                                                                              "sourceSrc = browserAbsoluteURL(sourceSrc);"
+                                                                              "if (sourceSrc && values.indexOf(sourceSrc) === -1) { values.push(sourceSrc); }"
+                                                                          "}"
+                                                                          "return values;"
+                                                                      "}"
+                                                                      "var video = browserResolveVideoElement();"
+                                                                      "if (!video) { return ''; }"
+                                                                      "return JSON.stringify({"
+                                                                          "src: browserResolvePrimarySource(video),"
+                                                                          "sources: browserResolveSourceList(video),"
+                                                                          "poster: browserAbsoluteURL(video.poster || ''),"
+                                                                          "title: video.getAttribute('title') || video.getAttribute('aria-label') || document.title || '',"
+                                                                          "tagName: video.tagName ? video.tagName.toLowerCase() : '',"
+                                                                          "paused: !!video.paused"
+                                                                      "});"];
+    return [self JSONObjectFromJavaScriptString:result];
+}
+
+- (BOOL)isNativePlayableVideoURLString:(NSString *)URLString {
+    if (URLString.length == 0) {
+        return NO;
+    }
+
+    NSString *lowercaseURLString = URLString.lowercaseString;
+    if ([lowercaseURLString hasPrefix:@"blob:"] ||
+        [lowercaseURLString hasPrefix:@"data:"] ||
+        [lowercaseURLString hasPrefix:@"mediastream:"]) {
+        return NO;
+    }
+
+    NSURL *URL = [NSURL URLWithString:URLString];
+    if (URL == nil) {
+        return NO;
+    }
+
+    NSString *scheme = URL.scheme.lowercaseString;
+    return [scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"];
+}
+
+- (void)presentNativeVideoPlayerForURL:(NSURL *)URL title:(NSString *)title {
+    [self presentNativeVideoPlayerForURL:URL title:title requestHeaders:nil cookies:nil];
+}
+
+- (void)presentNativeVideoPlayerForURL:(NSURL *)URL
+                                 title:(NSString *)title
+                        requestHeaders:(NSDictionary<NSString *, NSString *> *)requestHeaders
+                               cookies:(NSArray<NSHTTPCookie *> *)cookies {
+    if (URL == nil) {
+        return;
+    }
+
+    BrowserNativeVideoPlayerViewController *playerViewController = [[BrowserNativeVideoPlayerViewController alloc] initWithURL:URL
+                                                                                                                          title:title
+                                                                                                                  requestHeaders:requestHeaders
+                                                                                                                         cookies:cookies];
+    [self presentViewController:playerViewController animated:YES completion:nil];
+}
+
+- (NSDictionary<NSString *, NSString *> *)browserHeadersForYouTubePlaybackURL:(NSURL *)playbackURL pageURL:(NSURL *)pageURL {
+    if (playbackURL == nil || pageURL == nil) {
+        return nil;
+    }
+
+    NSMutableDictionary<NSString *, NSString *> *headers = [NSMutableDictionary dictionary];
+    NSString *userAgent = [[NSUserDefaults standardUserDefaults] stringForKey:kUserAgentDefaultsKey];
+    if (userAgent.length > 0) {
+        headers[@"User-Agent"] = userAgent;
+    }
+
+    headers[@"Referer"] = pageURL.absoluteString ?: @"https://www.youtube.com/";
+    NSString *origin = [NSString stringWithFormat:@"%@://%@", pageURL.scheme ?: @"https", pageURL.host ?: @"www.youtube.com"];
+    headers[@"Origin"] = origin;
+
+    NSArray<NSHTTPCookie *> *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:pageURL];
+    if (cookies.count > 0) {
+        NSDictionary<NSString *, NSString *> *cookieHeaders = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
+        NSString *cookieHeader = cookieHeaders[@"Cookie"];
+        if (cookieHeader.length > 0) {
+            headers[@"Cookie"] = cookieHeader;
+        }
+    }
+
+    return headers.count > 0 ? headers : nil;
+}
+
+- (BOOL)cookie:(NSHTTPCookie *)cookie matchesHost:(NSString *)host {
+    if (cookie == nil || host.length == 0) {
+        return NO;
+    }
+
+    NSString *cookieDomain = cookie.domain.lowercaseString ?: @"";
+    NSString *lowercaseHost = host.lowercaseString;
+    if (cookieDomain.length == 0) {
+        return NO;
+    }
+
+    if ([cookieDomain hasPrefix:@"."]) {
+        cookieDomain = [cookieDomain substringFromIndex:1];
+    }
+
+    return [lowercaseHost isEqualToString:cookieDomain] || [lowercaseHost hasSuffix:[@"." stringByAppendingString:cookieDomain]];
+}
+
+- (NSArray<NSHTTPCookie *> *)browserCookiesForYouTubePlaybackURL:(NSURL *)playbackURL pageURL:(NSURL *)pageURL {
+    NSMutableArray<NSHTTPCookie *> *matchingCookies = [NSMutableArray array];
+    NSMutableSet<NSString *> *seenCookieKeys = [NSMutableSet set];
+    NSArray<NSHTTPCookie *> *allCookies = [BrowserWebView allCookies];
+    NSString *pageHost = pageURL.host.lowercaseString ?: @"";
+    NSString *playbackHost = playbackURL.host.lowercaseString ?: @"";
+
+    for (NSHTTPCookie *cookie in allCookies) {
+        BOOL matches = [self cookie:cookie matchesHost:pageHost] ||
+        [self cookie:cookie matchesHost:playbackHost] ||
+        [self cookie:cookie matchesHost:@"youtube.com"] ||
+        [self cookie:cookie matchesHost:@"googlevideo.com"];
+        if (!matches) {
+            continue;
+        }
+
+        NSString *cookieKey = [NSString stringWithFormat:@"%@|%@|%@", cookie.domain ?: @"", cookie.path ?: @"", cookie.name ?: @""];
+        if ([seenCookieKeys containsObject:cookieKey]) {
+            continue;
+        }
+        [seenCookieKeys addObject:cookieKey];
+        [matchingCookies addObject:cookie];
+    }
+
+    return matchingCookies;
+}
+
+- (void)presentUnsupportedNativeVideoAlertForVideoInfo:(NSDictionary *)videoInfo {
+    NSArray *sources = [videoInfo[@"sources"] isKindOfClass:[NSArray class]] ? videoInfo[@"sources"] : @[];
+    NSString *sourceSummary = nil;
+    if (sources.count > 0) {
+        sourceSummary = [sources componentsJoinedByString:@"\n"];
+    } else if (videoInfo.count > 0) {
+        sourceSummary = @"No direct media URL was exposed by the page.";
+    } else {
+        sourceSummary = @"No video element was detected under the cursor.";
+    }
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Native Video Unavailable"
+                                                                             message:[NSString stringWithFormat:@"This page is not exposing a direct video URL that AVPlayer can open.\n\nDetected sources:\n%@", sourceSummary]
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alertController animated:YES completion:nil];
+}
+
+- (void)presentYouTubeExtractionError:(NSError *)error fallbackVideoInfo:(NSDictionary *)videoInfo {
+    NSString *message = error.localizedDescription ?: @"Could not extract a better YouTube playback URL.";
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"YouTube Extraction Failed"
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    __weak typeof(self) weakSelf = self;
+    NSString *fallbackURLString = [videoInfo[@"src"] isKindOfClass:[NSString class]] ? videoInfo[@"src"] : @"";
+    if ([self isNativePlayableVideoURLString:fallbackURLString]) {
+        [alertController addAction:[UIAlertAction actionWithTitle:@"Play Current URL"
+                                                            style:UIAlertActionStyleDefault
+                                                          handler:^(__unused UIAlertAction *action) {
+            NSURL *fallbackURL = [NSURL URLWithString:fallbackURLString];
+            NSString *title = [videoInfo[@"title"] isKindOfClass:[NSString class]] ? videoInfo[@"title"] : weakSelf.webview.title;
+            [weakSelf presentNativeVideoPlayerForURL:fallbackURL title:title];
+        }]];
+    }
+    [alertController addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alertController animated:YES completion:nil];
+}
+
+- (void)playYouTubeVideoAtPageURL:(NSURL *)pageURL fallbackVideoInfo:(NSDictionary *)videoInfo {
+    __weak typeof(self) weakSelf = self;
+    [[self youTubeExtractor] extractPlaybackInfoFromPageURL:pageURL webView:self.webview completion:^(BrowserYouTubeExtractionResult *result, NSError *error) {
+        if (result.playbackURL != nil) {
+            NSString *title = result.title.length > 0 ? result.title : weakSelf.webview.title;
+            NSMutableDictionary<NSString *, NSString *> *headers = [NSMutableDictionary dictionaryWithDictionary:result.requestHeaders ?: @{}];
+            NSDictionary<NSString *, NSString *> *fallbackHeaders = [weakSelf browserHeadersForYouTubePlaybackURL:result.playbackURL pageURL:pageURL];
+            [fallbackHeaders enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString *value, __unused BOOL *stop) {
+                if (headers[key].length == 0 && value.length > 0) {
+                    headers[key] = value;
+                }
+            }];
+
+            NSArray<NSHTTPCookie *> *cookies = [weakSelf browserCookiesForYouTubePlaybackURL:result.playbackURL pageURL:pageURL];
+            if (cookies.count > 0) {
+                NSDictionary<NSString *, NSString *> *cookieHeaders = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
+                NSString *cookieHeader = cookieHeaders[@"Cookie"];
+                if (cookieHeader.length > 0) {
+                    headers[@"Cookie"] = cookieHeader;
+                }
+            }
+
+            [weakSelf presentNativeVideoPlayerForURL:result.playbackURL
+                                               title:title
+                                      requestHeaders:headers.count > 0 ? headers : nil
+                                             cookies:cookies];
+            return;
+        }
+
+        [weakSelf presentYouTubeExtractionError:error fallbackVideoInfo:videoInfo ?: @{}];
+    }];
+}
+
+- (void)playVideoUnderCursorIfAvailable {
+    UIViewController *presentedViewController = self.presentedViewController;
+    if (!self.cursorMode ||
+        (presentedViewController != nil && ![presentedViewController isKindOfClass:[UIAlertController class]])) {
+        return;
+    }
+
+    NSURL *pageURL = self.webview.request.URL;
+    CGPoint point = [self browserDOMPointForCursor];
+    NSDictionary *videoInfo = [self videoInfoAtDOMPoint:point];
+    if ([[self youTubeExtractor] canExtractFromPageURL:pageURL]) {
+        [self playYouTubeVideoAtPageURL:pageURL fallbackVideoInfo:videoInfo];
+        return;
+    }
+
+    NSString *videoURLString = [videoInfo[@"src"] isKindOfClass:[NSString class]] ? videoInfo[@"src"] : @"";
+    if (![self isNativePlayableVideoURLString:videoURLString]) {
+        [self presentUnsupportedNativeVideoAlertForVideoInfo:videoInfo ?: @{}];
+        return;
+    }
+
+    NSURL *videoURL = [NSURL URLWithString:videoURLString];
+    NSString *title = [videoInfo[@"title"] isKindOfClass:[NSString class]] ? videoInfo[@"title"] : self.webview.title;
+    [self presentNativeVideoPlayerForURL:videoURL title:title];
 }
 
 - (BOOL)isPrimaryDocumentRequest:(NSURLRequest *)request {
@@ -539,6 +966,7 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
     BOOL wasCursorMode = self.cursorMode;
     self.cursorMode = cursorMode;
     self.lastTouchLocation = CGPointMake(-1, -1);
+    [self stopManualScrollInertia];
     UIScrollView *scrollView = [self.webview scrollView];
     BOOL shouldAllowWebInteraction = !cursorMode && !self.tabOverviewVisible;
     scrollView.scrollEnabled = shouldAllowWebInteraction;
@@ -788,11 +1216,13 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 }
 
 - (void)dealloc {
+    [self stopManualScrollInertia];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
+    [self stopManualScrollInertia];
 }
 
 #pragma mark - Font Size
@@ -808,7 +1238,41 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
 }
 
 - (void)updateTextFontSize {
-    NSString *jsString = [[NSString alloc] initWithFormat:@"document.getElementsByTagName('body')[0].style.webkitTextSizeAdjust= '%lu%%'",
+    NSString *jsString = [[NSString alloc] initWithFormat:
+                          @"(function(){"
+                           "var value='%lu%%';"
+                           "var multiplier=%lu/100;"
+                           "if (document.documentElement && document.documentElement.style) {"
+                               "document.documentElement.style.setProperty('-webkit-text-size-adjust', value, 'important');"
+                               "document.documentElement.style.setProperty('text-size-adjust', value, 'important');"
+                           "}"
+                           "if (document.body && document.body.style) {"
+                               "document.body.style.setProperty('-webkit-text-size-adjust', value, 'important');"
+                               "document.body.style.setProperty('text-size-adjust', value, 'important');"
+                           "}"
+                           "if (!document.body || !window.getComputedStyle) { return value; }"
+                           "var elements = document.querySelectorAll('body, body *');"
+                           "for (var i = 0; i < elements.length; i++) {"
+                               "var element = elements[i];"
+                               "if (!element || !element.tagName) { continue; }"
+                               "var tagName = element.tagName.toLowerCase();"
+                               "if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') { continue; }"
+                               "var originalSize = element.getAttribute('data-browser-original-font-size');"
+                               "if (!originalSize) {"
+                                   "var computedSize = window.getComputedStyle(element).fontSize || '';"
+                                   "if (computedSize.indexOf('px') === -1) { continue; }"
+                                   "var parsedSize = parseFloat(computedSize);"
+                                   "if (!isFinite(parsedSize) || parsedSize <= 0) { continue; }"
+                                   "originalSize = String(parsedSize);"
+                                   "element.setAttribute('data-browser-original-font-size', originalSize);"
+                               "}"
+                               "var baseSize = parseFloat(originalSize);"
+                               "if (!isFinite(baseSize) || baseSize <= 0) { continue; }"
+                               "element.style.setProperty('font-size', (baseSize * multiplier) + 'px', 'important');"
+                           "}"
+                           "return value;"
+                          "})()",
+                          (unsigned long)self.textFontSize,
                           (unsigned long)self.textFontSize];
     [self.webview stringByEvaluatingJavaScriptFromString:jsString];
 }
@@ -888,7 +1352,9 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
     self.tabOverviewAddButton.userInteractionEnabled = NO;
     [self.tabOverviewPanelView addSubview:self.tabOverviewAddButton];
     
-    UILabel *addTabLabel = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetWidth(self.tabOverviewPanelView.bounds) - 178.0, 98.0, 180.0, 28.0)];
+    CGFloat addTabLabelWidth = 180.0;
+    CGFloat addTabLabelX = CGRectGetMidX(self.tabOverviewAddButton.frame) - (addTabLabelWidth / 2.0);
+    UILabel *addTabLabel = [[UILabel alloc] initWithFrame:CGRectMake(addTabLabelX, 98.0, addTabLabelWidth, 28.0)];
     addTabLabel.text = @"New Tab";
     addTabLabel.textAlignment = NSTextAlignmentCenter;
     addTabLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.72];
@@ -1041,25 +1507,29 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
         return;
     }
 
-    UIScrollView *scrollView = [self.webview scrollView];
-    if (scrollView == nil) {
-        return;
+    if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        [self stopManualScrollInertia];
     }
 
     CGPoint translation = [gestureRecognizer translationInView:self.view];
     if (!CGPointEqualToPoint(translation, CGPointZero)) {
-        CGPoint contentOffset = scrollView.contentOffset;
-        CGFloat maxOffsetX = MAX(0.0, scrollView.contentSize.width - CGRectGetWidth(scrollView.bounds));
-        CGFloat maxOffsetY = MAX(0.0, scrollView.contentSize.height - CGRectGetHeight(scrollView.bounds));
-        CGFloat nextOffsetX = MIN(MAX(contentOffset.x - translation.x, 0.0), maxOffsetX);
-        CGFloat nextOffsetY = MIN(MAX(contentOffset.y - translation.y, 0.0), maxOffsetY);
-        [scrollView setContentOffset:CGPointMake(nextOffsetX, nextOffsetY) animated:NO];
+        [self applyManualScrollDelta:CGPointMake(-translation.x, -translation.y)];
         [gestureRecognizer setTranslation:CGPointZero inView:self.view];
+        self.manualScrollLastMovementTimestamp = CACurrentMediaTime();
     }
 
-    if (gestureRecognizer.state == UIGestureRecognizerStateEnded ||
-        gestureRecognizer.state == UIGestureRecognizerStateCancelled ||
-        gestureRecognizer.state == UIGestureRecognizerStateFailed) {
+    if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+        CFTimeInterval timeSinceLastMovement = CACurrentMediaTime() - self.manualScrollLastMovementTimestamp;
+        CGPoint velocity = [gestureRecognizer velocityInView:self.view];
+        if (timeSinceLastMovement < 0.08) {
+            [self startManualScrollInertiaWithVelocity:CGPointMake(-velocity.x, -velocity.y)];
+        } else {
+            [self stopManualScrollInertia];
+        }
+        [self persistBrowserSession];
+    } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled ||
+               gestureRecognizer.state == UIGestureRecognizerStateFailed) {
+        [self stopManualScrollInertia];
         [self persistBrowserSession];
     }
 }
@@ -1590,8 +2060,27 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
         else
         {
             point = [self browserDOMPointForCursor];
+            NSString *fieldType = [self evaluateResolvedElementJavaScriptAtPoint:point
+                                                                            body:@"function browserEditableTargetAtPoint() {"
+                                                                                 "var candidate = editableElement;"
+                                                                                 "if (!candidate && resolvedElement && resolvedElement.matches) {"
+                                                                                     "if (resolvedElement.matches(editableSelector) || resolvedElement.matches('textarea, select')) {"
+                                                                                         "candidate = resolvedElement;"
+                                                                                     "}"
+                                                                                 "}"
+                                                                                 "if (!candidate) { return null; }"
+                                                                                 "window.__browserLastEditableElement = candidate;"
+                                                                                 "return candidate;"
+                                                                                 "}"
+                                                                                 "var target = browserEditableTargetAtPoint();"
+                                                                                 "if (!target) { return ''; }"
+                                                                                 "var tagName = target.tagName ? target.tagName.toLowerCase() : '';"
+                                                                                 "var type = (target.type || '').toLowerCase();"
+                                                                                 "if (tagName === 'textarea' || target.isContentEditable) { return 'text'; }"
+                                                                                 "if (tagName === 'input' && !type) { return 'text'; }"
+                                                                                 "return type;"];
             [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                      body:@"var target = interactiveElement || resolvedElement;"
+                                                      body:@"var target = editableElement || interactiveElement || resolvedElement;"
                                                            "if (!target) { return 'false'; }"
                                                            "try { if (target.focus) { target.focus(); } } catch (error) {}"
                                                            "function dispatchPointerLikeEvent(type, constructorName) {"
@@ -1613,20 +2102,19 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
                                                            "if (typeof target.click === 'function') { target.click(); }"
                                                            "else { dispatchPointerLikeEvent('click', 'MouseEvent'); }"
                                                            "return 'true';"];
-            NSString *fieldType = [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                            body:@"var target = editableElement || interactiveElement || resolvedElement;"
-                                                                                 "return (target && target.type) ? target.type : '';"];
             fieldType = fieldType.lowercaseString;
             if ([fieldType isEqualToString:@"date"] || [fieldType isEqualToString:@"datetime"] || [fieldType isEqualToString:@"datetime-local"] || [fieldType isEqualToString:@"email"] || [fieldType isEqualToString:@"month"] || [fieldType isEqualToString:@"number"] || [fieldType isEqualToString:@"password"] || [fieldType isEqualToString:@"search"] || [fieldType isEqualToString:@"tel"] || [fieldType isEqualToString:@"text"] || [fieldType isEqualToString:@"time"] || [fieldType isEqualToString:@"url"] || [fieldType isEqualToString:@"week"]) {
-                NSString *fieldTitle = [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                 body:@"var target = editableElement || interactiveElement || resolvedElement;"
-                                                                                      "return (target && target.title) ? target.title : '';"];
+                NSString *fieldTitle = [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                 body:@"var target = browserEditableTarget();"
+                                                                                      "if (!target) { return ''; }"
+                                                                                      "return target.title || target.getAttribute('aria-label') || target.name || target.placeholder || '';"];
                 if ([fieldTitle isEqualToString:@""]) {
                     fieldTitle = fieldType;
                 }
-                NSString *placeholder = [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                  body:@"var target = editableElement || interactiveElement || resolvedElement;"
-                                                                                       "return (target && target.placeholder) ? target.placeholder : '';"];
+                NSString *placeholder = [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                  body:@"var target = browserEditableTarget();"
+                                                                                       "if (!target) { return ''; }"
+                                                                                       "return target.placeholder || target.getAttribute('aria-label') || '';"];
                 if ([placeholder isEqualToString:@""]) {
                     if (![fieldTitle isEqualToString:fieldType]) {
                         placeholder = [NSString stringWithFormat:@"%@ Input", fieldTitle];
@@ -1635,8 +2123,8 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
                         placeholder = @"Text Input";
                     }
                 }
-                NSString *testedFormResponse = [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                        body:@"var target = editableElement || interactiveElement || resolvedElement;"
+                NSString *testedFormResponse = [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                        body:@"var target = browserEditableTarget();"
                                                                                              "return (target && target.form && target.form.hasAttribute('onsubmit')) ? 'true' : 'false';"];
                 UIAlertController *alertController = [UIAlertController
                                                       alertControllerWithTitle:@"Input Text"
@@ -1661,9 +2149,11 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
                      if ([fieldType isEqualToString:@"password"]) {
                          textField.secureTextEntry = YES;
                      }
-                     textField.text = [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                body:@"var target = editableElement || interactiveElement || resolvedElement;"
-                                                                                     "return (target && typeof target.value !== 'undefined') ? target.value : '';"];
+                     textField.text = [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                body:@"var target = browserEditableTarget();"
+                                                                                     "if (!target) { return ''; }"
+                                                                                     "if (typeof target.value !== 'undefined') { return target.value; }"
+                                                                                     "return target.textContent || '';"];
                      textField.textColor = kTextColor();
                      [textField setReturnKeyType:UIReturnKeyDone];
                      [textField addTarget:self
@@ -1677,16 +2167,17 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
                                                        {
                                                            UITextField *inputViewTextField = alertController.textFields[0];
                                                            NSString *escapedText = [self javaScriptEscapedString:inputViewTextField.text];
-                                                           [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                                    body:[NSString stringWithFormat:@"var target = editableElement || interactiveElement || resolvedElement;"
+                                                           [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                                    body:[NSString stringWithFormat:@"var target = browserEditableTarget();"
                                                                                                           "if (!target) { return 'false'; }"
-                                                                                                          "target.value = '%@';"
+                                                                                                          "if (typeof target.value !== 'undefined') { target.value = '%@'; }"
+                                                                                                          "else { target.textContent = '%@'; }"
                                                                                                           "if (target.dispatchEvent) {"
                                                                                                               "target.dispatchEvent(new Event('input', { bubbles: true }));"
                                                                                                               "target.dispatchEvent(new Event('change', { bubbles: true }));"
                                                                                                           "}"
                                                                                                           "if (target.form) { target.form.submit(); }"
-                                                                                                          "return 'true';", escapedText]];
+                                                                                                          "return 'true';", escapedText, escapedText]];
                                                        }];
                 UIAlertAction *inputAction = [UIAlertAction
                                               actionWithTitle:@"Done"
@@ -1695,15 +2186,16 @@ static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGl
                                               {
                                                   UITextField *inputViewTextField = alertController.textFields[0];
                                                   NSString *escapedText = [self javaScriptEscapedString:inputViewTextField.text];
-                                                  [self evaluateResolvedElementJavaScriptAtPoint:point
-                                                                                           body:[NSString stringWithFormat:@"var target = editableElement || interactiveElement || resolvedElement;"
+                                                  [self evaluateEditableElementJavaScriptAtPoint:point
+                                                                                           body:[NSString stringWithFormat:@"var target = browserEditableTarget();"
                                                                                                  "if (!target) { return 'false'; }"
-                                                                                                 "target.value = '%@';"
+                                                                                                 "if (typeof target.value !== 'undefined') { target.value = '%@'; }"
+                                                                                                 "else { target.textContent = '%@'; }"
                                                                                                  "if (target.dispatchEvent) {"
                                                                                                      "target.dispatchEvent(new Event('input', { bubbles: true }));"
                                                                                                      "target.dispatchEvent(new Event('change', { bubbles: true }));"
                                                                                                  "}"
-                                                                                                 "return 'true';", escapedText]];
+                                                                                                 "return 'true';", escapedText, escapedText]];
                                               }];
                 UIAlertAction *cancelAction = [UIAlertAction
                                                actionWithTitle:nil

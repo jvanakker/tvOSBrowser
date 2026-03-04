@@ -13,6 +13,8 @@ static NSString * const kDisableInlineMediaPlaybackDefaultsKey = @"DisableInline
 static NSString * const kDesktopUserAgent = @"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 static NSString * const kMobileUserAgent = @"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 static NSString * const kUserAgentDefaultsKey = @"UserAgent";
+static NSString * const kBrowserMediaDiagnosticsLogPrefix = @"[MediaDiagnostics]";
+static NSString * const kBrowserWebKitMediaPrefsLogPrefix = @"[WebKitMediaPrefs]";
 
 @interface BrowserMenuPresenter ()
 
@@ -268,6 +270,182 @@ static NSString * const kUserAgentDefaultsKey = @"UserAgent";
     }];
 }
 
+- (NSString *)mediaDiagnosticsJavaScript {
+    return @"(function(){"
+            "function canPlay(type){"
+                "try {"
+                    "var video=document.createElement('video');"
+                    "if (!video || typeof video.canPlayType!=='function') { return 'n/a'; }"
+                    "var value=video.canPlayType(type);"
+                    "return value ? String(value) : '';"
+                "} catch (error) { return 'error'; }"
+            "}"
+            "function mse(type){"
+                "try {"
+                    "if (typeof MediaSource==='undefined' || typeof MediaSource.isTypeSupported!=='function') { return 'n/a'; }"
+                    "return MediaSource.isTypeSupported(type) ? 'yes' : 'no';"
+                "} catch (error) { return 'error'; }"
+            "}"
+            "function probeGlobal(name){"
+                "try {"
+                    "var value=window[name];"
+                    "if (typeof value==='undefined') { return 'undefined'; }"
+                    "if (value === null) { return 'null'; }"
+                    "return typeof value;"
+                "} catch (error) { return 'error'; }"
+            "}"
+            "var video=document.querySelector('video');"
+            "var result={"
+                "href:(window.location && window.location.href) ? String(window.location.href) : '',"
+                "title:(document && document.title) ? String(document.title) : '',"
+                "userAgent:(navigator && navigator.userAgent) ? String(navigator.userAgent) : '',"
+                "platform:(navigator && navigator.platform) ? String(navigator.platform) : '',"
+                "mediaSource:(typeof MediaSource!=='undefined') ? 'yes' : 'no',"
+                "managedMediaSource:(typeof ManagedMediaSource!=='undefined') ? 'yes' : 'no',"
+                "mediaCapabilities:(typeof navigator.mediaCapabilities!=='undefined') ? 'yes' : 'no',"
+                "videoElement:video ? 'yes' : 'no',"
+                "videoSrc:video ? String(video.currentSrc||video.src||'') : '',"
+                "globalMediaSource:probeGlobal('MediaSource'),"
+                "globalManagedMediaSource:probeGlobal('ManagedMediaSource'),"
+                "globalWebKitMediaSource:probeGlobal('WebKitMediaSource'),"
+                "globalSourceBuffer:probeGlobal('SourceBuffer'),"
+                "globalManagedSourceBuffer:probeGlobal('ManagedSourceBuffer'),"
+                "globalWebKitSourceBuffer:probeGlobal('WebKitSourceBuffer'),"
+                "hls:canPlay('application/vnd.apple.mpegurl'),"
+                "mp4H264:canPlay('video/mp4; codecs=\"avc1.42E01E, mp4a.40.2\"'),"
+                "mp4Hevc:canPlay('video/mp4; codecs=\"hvc1.1.6.L93.B0, mp4a.40.2\"'),"
+                "webmVp9:canPlay('video/webm; codecs=\"vp9\"'),"
+                "mp4Av1:canPlay('video/mp4; codecs=\"av01.0.05M.08, mp4a.40.2\"'),"
+                "webmAv1:canPlay('video/webm; codecs=\"av01.0.05M.08\"'),"
+                "mseMp4H264:mse('video/mp4; codecs=\"avc1.42E01E, mp4a.40.2\"'),"
+                "mseWebmVp9:mse('video/webm; codecs=\"vp9\"'),"
+                "mseMp4Av1:mse('video/mp4; codecs=\"av01.0.05M.08, mp4a.40.2\"'),"
+                "mseWebmAv1:mse('video/webm; codecs=\"av01.0.05M.08\"')"
+            "};"
+            "return JSON.stringify(result);"
+           "})()";
+}
+
+- (NSDictionary *)mediaDiagnosticsDictionary {
+    NSString *resultString = [[self.host browserWebView] stringByEvaluatingJavaScriptFromString:[self mediaDiagnosticsJavaScript]];
+    if (![self stringHasVisibleContent:resultString]) {
+        return nil;
+    }
+
+    NSData *resultData = [resultString dataUsingEncoding:NSUTF8StringEncoding];
+    if (resultData == nil) {
+        return nil;
+    }
+
+    id object = [NSJSONSerialization JSONObjectWithData:resultData options:0 error:nil];
+    if (![object isKindOfClass:[NSDictionary class]]) {
+        return nil;
+    }
+    return object;
+}
+
+- (NSString *)stringValueForDiagnosticsKey:(NSString *)key dictionary:(NSDictionary *)dictionary fallback:(NSString *)fallback {
+    id value = dictionary[key];
+    if ([value isKindOfClass:[NSString class]] && [self stringHasVisibleContent:value]) {
+        return value;
+    }
+    if ([value respondsToSelector:@selector(stringValue)]) {
+        NSString *stringValue = [value stringValue];
+        if ([self stringHasVisibleContent:stringValue]) {
+            return stringValue;
+        }
+    }
+    return fallback;
+}
+
+- (void)presentMediaDiagnostics {
+    NSDictionary *diagnostics = [self mediaDiagnosticsDictionary];
+    if (diagnostics == nil) {
+        UIAlertController *alertController = [self browserAlertControllerWithTitle:@"Media Diagnostics"
+                                                                           message:@"The page did not return diagnostics data."];
+        [alertController addAction:[self browserCancelAction]];
+        [self.host browserPresentViewController:alertController];
+        return;
+    }
+
+    BOOL mobileModeEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"MobileMode"];
+    NSString *message = [NSString stringWithFormat:
+                         @"Mode: %@\n"
+                          "URL: %@\n"
+                          "UA: %@\n\n"
+                          "MediaSource: %@\n"
+                          "ManagedMediaSource: %@\n"
+                          "MediaCapabilities: %@\n"
+                          "Video Element: %@\n"
+                          "Video Src: %@\n\n"
+                          "Global MediaSource: %@\n"
+                          "Global ManagedMediaSource: %@\n"
+                          "Global WebKitMediaSource: %@\n"
+                          "Global SourceBuffer: %@\n"
+                          "Global ManagedSourceBuffer: %@\n"
+                          "Global WebKitSourceBuffer: %@\n\n"
+                          "canPlay HLS: %@\n"
+                          "canPlay MP4 H.264: %@\n"
+                          "canPlay MP4 HEVC: %@\n"
+                          "canPlay WebM VP9: %@\n"
+                          "canPlay MP4 AV1: %@\n"
+                          "canPlay WebM AV1: %@\n\n"
+                          "MSE MP4 H.264: %@\n"
+                          "MSE WebM VP9: %@\n"
+                          "MSE MP4 AV1: %@\n"
+                          "MSE WebM AV1: %@",
+                         mobileModeEnabled ? @"Mobile" : @"Desktop",
+                         [self stringValueForDiagnosticsKey:@"href" dictionary:diagnostics fallback:@"Unavailable"],
+                         [self stringValueForDiagnosticsKey:@"userAgent" dictionary:diagnostics fallback:@"Unavailable"],
+                         [self stringValueForDiagnosticsKey:@"mediaSource" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"managedMediaSource" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mediaCapabilities" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"videoElement" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"videoSrc" dictionary:diagnostics fallback:@"Unavailable"],
+                         [self stringValueForDiagnosticsKey:@"globalMediaSource" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"globalManagedMediaSource" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"globalWebKitMediaSource" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"globalSourceBuffer" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"globalManagedSourceBuffer" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"globalWebKitSourceBuffer" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"hls" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mp4H264" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mp4Hevc" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"webmVp9" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mp4Av1" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"webmAv1" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mseMp4H264" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mseWebmVp9" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mseMp4Av1" dictionary:diagnostics fallback:@"n/a"],
+                         [self stringValueForDiagnosticsKey:@"mseWebmAv1" dictionary:diagnostics fallback:@"n/a"]];
+
+    NSLog(@"%@ %@", kBrowserMediaDiagnosticsLogPrefix, message);
+
+    UIAlertController *alertController = [self browserAlertControllerWithTitle:@"Media Diagnostics"
+                                                                       message:message];
+    [alertController addAction:[self browserCancelAction]];
+    [self.host browserPresentViewController:alertController];
+}
+
+- (void)presentWebKitRuntimeMediaPreferences {
+    NSString *report = [[self.host browserWebView] runtimeMediaPreferenceReport];
+    if (![self stringHasVisibleContent:report]) {
+        report = @"No runtime WebKit media preference information was returned.";
+    }
+
+    NSLog(@"%@ %@", kBrowserWebKitMediaPrefsLogPrefix, report);
+
+    NSString *message = report;
+    if (message.length > 1800) {
+        message = [[message substringToIndex:1800] stringByAppendingString:@"\n\nFull report logged to console."];
+    }
+
+    UIAlertController *alertController = [self browserAlertControllerWithTitle:@"WebKit Media Prefs"
+                                                                       message:message];
+    [alertController addAction:[self browserCancelAction]];
+    [self.host browserPresentViewController:alertController];
+}
+
 - (UIAlertAction *)topNavigationVisibilityAction {
     NSString *title = self.host.browserTopMenuShowing ? @"Hide Top Navigation bar" : @"Show Top Navigation bar";
     return [self browserActionWithTitle:title
@@ -395,6 +573,16 @@ static NSString * const kUserAgentDefaultsKey = @"UserAgent";
     }];
 }
 
+- (UIAlertAction *)playVideoUnderCursorAction {
+    return [self browserActionWithTitle:@"Play Active Video"
+                                  style:UIAlertActionStyleDefault
+                                handler:^(__unused UIAlertAction *action) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.host browserPlayVideoUnderCursorIfAvailable];
+        });
+    }];
+}
+
 - (NSArray<UIAlertAction *> *)advancedMenuActions {
     return @[
         [self favoritesMenuAction],
@@ -408,6 +596,17 @@ static NSString * const kUserAgentDefaultsKey = @"UserAgent";
         [self topNavigationVisibilityAction],
         [self pageScalingAction],
         [self inlineMediaPlaybackAction],
+        [self playVideoUnderCursorAction],
+        [self browserActionWithTitle:@"Media Diagnostics"
+                               style:UIAlertActionStyleDefault
+                             handler:^(__unused UIAlertAction *action) {
+            [self presentMediaDiagnostics];
+        }],
+        [self browserActionWithTitle:@"Inspect WebKit Media Prefs"
+                               style:UIAlertActionStyleDefault
+                             handler:^(__unused UIAlertAction *action) {
+            [self presentWebKitRuntimeMediaPreferences];
+        }],
         [self browserActionWithTitle:@"Increase Font Size"
                                style:UIAlertActionStyleDefault
                              handler:^(__unused UIAlertAction *action) {
@@ -418,6 +617,12 @@ static NSString * const kUserAgentDefaultsKey = @"UserAgent";
                                style:UIAlertActionStyleDefault
                              handler:^(__unused UIAlertAction *action) {
             self.host.browserTextFontSize -= 5;
+            [self.host browserUpdateTextFontSize];
+        }],
+        [self browserActionWithTitle:@"Reset Font Size"
+                               style:UIAlertActionStyleDefault
+                             handler:^(__unused UIAlertAction *action) {
+            self.host.browserTextFontSize = 100;
             [self.host browserUpdateTextFontSize];
         }],
         [self browserActionWithTitle:@"Clear Cache"
