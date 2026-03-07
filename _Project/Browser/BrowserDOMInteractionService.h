@@ -21,6 +21,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)javaScriptEscapedString:(NSString *)string;
 - (NSDictionary *)videoInfoAtDOMPoint:(CGPoint)point
                                webView:(BrowserWebView *)webView;
+- (NSDictionary *)linkInfoAtDOMPoint:(CGPoint)point
+                              webView:(BrowserWebView *)webView;
 - (NSDictionary *)directVideoInfoAtDOMPoint:(CGPoint)point
                                      webView:(BrowserWebView *)webView;
 - (BOOL)isVideoActivationTargetAtDOMPoint:(CGPoint)point

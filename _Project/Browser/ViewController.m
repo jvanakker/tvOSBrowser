@@ -54,7 +54,6 @@ static CGFloat const kTabCardWidth = 260.0;
 static CGFloat const kTabCardHeight = 240.0;
 static CGFloat const kTabCardSpacing = 20.0;
 static CGFloat const kTabCardGlowInset = 12.0;
-static NSString * const kEnableFullscreenVideoPlaybackDefaultsKey = @"EnableFullscreenVideoPlayback";
 static NSString * const kUserAgentDefaultsKey = @"UserAgent";
 static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGlobalSelectPressEndedNotification";
 
@@ -123,19 +122,6 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
 @end
 
 @implementation ViewController
-
-- (UIAlertController *)browserAlertControllerWithTitle:(NSString *)title message:(NSString *)message {
-    return [UIAlertController alertControllerWithTitle:title
-                                               message:message
-                                        preferredStyle:UIAlertControllerStyleAlert];
-}
-
-
-- (UIAlertAction *)browserActionWithTitle:(NSString *)title
-                                    style:(UIAlertActionStyle)style
-                                  handler:(void (^ __nullable)(UIAlertAction *action))handler {
-    return [UIAlertAction actionWithTitle:title style:style handler:handler];
-}
 
 - (BOOL)applyManualScrollDelta:(CGPoint)delta {
     UIScrollView *scrollView = [self.webview scrollView];
@@ -306,13 +292,11 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
 }
 
 - (BOOL)browserFullscreenVideoPlaybackEnabled {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:kEnableFullscreenVideoPlaybackDefaultsKey];
+    return self.viewModel.fullscreenVideoPlaybackEnabled;
 }
 
 - (void)setBrowserFullscreenVideoPlaybackEnabled:(BOOL)browserFullscreenVideoPlaybackEnabled {
-    [[NSUserDefaults standardUserDefaults] setBool:browserFullscreenVideoPlaybackEnabled
-                                            forKey:kEnableFullscreenVideoPlaybackDefaultsKey];
-    [[NSUserDefaults standardUserDefaults] synchronize];
+    self.viewModel.fullscreenVideoPlaybackEnabled = browserFullscreenVideoPlaybackEnabled;
 }
 
 - (void)browserPresentViewController:(UIViewController *)viewController {
@@ -472,6 +456,24 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
                                                                     webView:self.webview];
 }
 
+- (BOOL)handleTargetBlankLinkAtDOMPoint:(CGPoint)point {
+    NSDictionary *linkInfo = [self.domInteractionService linkInfoAtDOMPoint:point
+                                                                     webView:self.webview];
+    NSString *href = [linkInfo[@"href"] isKindOfClass:[NSString class]] ? linkInfo[@"href"] : @"";
+    NSString *target = [linkInfo[@"target"] isKindOfClass:[NSString class]] ? linkInfo[@"target"] : @"";
+
+    if (href.length == 0 || ![target isEqualToString:@"_blank"]) {
+        return NO;
+    }
+
+    NSURLRequest *request = [self.navigationService requestForURLString:href];
+    if (request == nil) {
+        return NO;
+    }
+
+    return [self webView:self.webview shouldCreateNewTabWithRequest:request navigationType:0];
+}
+
 - (NSString *)javaScriptEscapedString:(NSString *)string {
     return [self.domInteractionService javaScriptEscapedString:string];
 }
@@ -514,20 +516,6 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
     return [self.sessionStore restoreSessionIntoViewModel:self.viewModel];
 }
 
-- (NSURLRequest *)requestWithURLString:(NSString *)URLString {
-    NSURL *URL = [NSURL URLWithString:URLString];
-    if (URL == nil) {
-        return nil;
-    }
-
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:URL];
-    NSString *userAgent = [[NSUserDefaults standardUserDefaults] stringForKey:kUserAgentDefaultsKey];
-    if (userAgent.length > 0) {
-        [request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
-    }
-    return request;
-}
-
 - (void)loadStoredContentForTab:(BrowserTabViewModel *)tab {
     if (tab == nil) {
         [self loadHomePage];
@@ -540,7 +528,7 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
         return;
     }
 
-    NSURLRequest *request = [self requestWithURLString:URLString];
+    NSURLRequest *request = [self.navigationService requestForURLString:URLString];
     if (request != nil) {
         [self.webview loadRequest:request];
     }
@@ -728,7 +716,7 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
     [self initWebView];
     
     if (currentURL.length > 0) {
-        NSURLRequest *request = [self requestWithURLString:currentURL];
+        NSURLRequest *request = [self.navigationService requestForURLString:currentURL];
         if (request != nil) {
             [self.webview loadRequest:request];
         }
@@ -745,15 +733,10 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
     _displayedHintsOnLaunch = YES;
 }
 -(void)webViewDidAppear {
-    if ([[NSUserDefaults standardUserDefaults] stringForKey:@"savedURLtoReopen"] != nil) {
-        NSURLRequest *request = [self requestWithURLString:[[NSUserDefaults standardUserDefaults] stringForKey:@"savedURLtoReopen"]];
-        if (request != nil) {
-            [self.webview loadRequest:request];
-        }
-        [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"savedURLtoReopen"];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-    }
-    else if ([self.webview request] == nil) {
+    NSURLRequest *savedReopenRequest = [self.sessionStore consumeSavedURLToReopenRequestWithNavigationService:self.navigationService];
+    if (savedReopenRequest != nil) {
+        [self.webview loadRequest:savedReopenRequest];
+    } else if ([self.webview request] == nil) {
         [self loadStoredContentForTab:[self activeTab]];
     }
     if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DontShowHintsOnLaunch"] && !_displayedHintsOnLaunch) {
@@ -1454,6 +1437,30 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
     [self.menuCoordinator showAdvancedMenu];
 }
 
+- (BOOL)webView:(id)webView
+shouldCreateNewTabWithRequest:(NSURLRequest *)request
+ navigationType:(NSInteger)navigationType {
+    (void)webView;
+    (void)navigationType;
+
+    if (request == nil || request.URL == nil) {
+        return NO;
+    }
+
+    [self captureSnapshotForTab:[self activeTab]];
+    if ([self.viewModel addTab] == nil) {
+        [self showMaxTabsAlert];
+        return NO;
+    }
+
+    [self initWebView];
+    [self refreshActiveTabUI];
+    [self.view bringSubviewToFront:self.cursorView];
+    [self.webview loadRequest:request];
+    [self persistBrowserSession];
+    return YES;
+}
+
 - (BOOL)webView:(id)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(NSInteger)navigationType {
     BrowserTabViewModel *tab = [self tabForWebView:webView];
     if (tab == nil) {
@@ -1690,14 +1697,15 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
                 
                 
                 if (self.topMenuShowing) {
-                    UIAlertController *alertController = [self browserAlertControllerWithTitle:@"Hide Top Navigation bar?"
-                                                                                       message:@"You can still open the side menu by double-tapping the Play/Pause button."];
-                    [alertController addAction:[self browserActionWithTitle:@"Cancel"
-                                                                      style:UIAlertActionStyleCancel
-                                                                    handler:nil]];
-                    [alertController addAction:[self browserActionWithTitle:@"Hide Bar"
-                                                                      style:UIAlertActionStyleDestructive
-                                                                    handler:^(__unused UIAlertAction *action) {
+                    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Hide Top Navigation bar?"
+                                                                                               message:@"You can still open the side menu by double-tapping the Play/Pause button."
+                                                                                        preferredStyle:UIAlertControllerStyleAlert];
+                    [alertController addAction:[UIAlertAction actionWithTitle:@"Cancel"
+                                                                        style:UIAlertActionStyleCancel
+                                                                      handler:nil]];
+                    [alertController addAction:[UIAlertAction actionWithTitle:@"Hide Bar"
+                                                                        style:UIAlertActionStyleDestructive
+                                                                      handler:^(__unused UIAlertAction *action) {
                         [self hideTopNav];
                     }]];
                     [self browserPresentViewController:alertController];
@@ -1720,6 +1728,9 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
         {
             point = [self browserDOMPointForCursor];
             if ([self.videoPlaybackCoordinator handleSelectPressForVideoAtCursor]) {
+                return;
+            }
+            if ([self handleTargetBlankLinkAtDOMPoint:point]) {
                 return;
             }
 

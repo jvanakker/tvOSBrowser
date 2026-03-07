@@ -5,19 +5,20 @@ tvOS Browser
 ![Alt text](/screen02.jpg?raw=true "Part of the advanced menu")
 
 
-Web browser for tvOS using private API. The latest version has some significant changes:
+***tvOS Browser*** is a webbrowser for Apple TV devices running tvOS. It's using private API's, Apple does normally not allow to use this in App Store distributed apps. The latest version has some significant changes:
 - It's now using WKWebView instead of UIWebView, which results in much improved performance and better website rendering.
 - Added support for browser Tabs
 - New modern Liquid Glass UI
 - Added (experimental) full screen video player, which you can enable in the Menu
 
-This software is provided as is with no warrenty or liability. Use at your own risk. It's NOT meant to be distributed on the Apple App Store.
+This code is provided as is with no warrenty or liability. Use at your own risk and do ***not*** distribute builds of this project on the App Store.
 
 
 How to Install tvOS Browser
 =============
 
-To install this app, connect your Apple TV to your macOS computer via WiFi (or USB on older devices). Open this project in XCode and install to your Apple TV.
+There is ***no*** ready to use binary available on this repository. You need to install Xcode and build/run the project yourself.
+To install this app, connect your Apple TV to your macOS computer via WiFi (or USB on older devices). Open this project in Xcode and install to your Apple TV.
 Connecting to your Apple TV wirelessly: http://www.redmondpie.com/how-to-wirelessly-connect-apple-tv-4k-to-xcode-on-mac/.
 
 How to Use tvOSBrowser

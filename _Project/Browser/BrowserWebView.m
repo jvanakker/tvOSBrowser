@@ -924,20 +924,32 @@ static void BrowserInstallYouTubeCaptureUserScript(id configuration) {
     self.loading = NO;
 }
 
-- (void)webView:(id)webView decidePolicyForNavigationAction:(id)navigationAction decisionHandler:(void (^)(NSInteger policy))decisionHandler {
-    NSURLRequest *request = nil;
-    NSInteger navigationType = 0;
-    BOOL isMainFrameRequest = YES;
-
+- (NSURLRequest *)requestFromNavigationAction:(id)navigationAction {
+    if (navigationAction == nil) {
+        return nil;
+    }
     SEL requestSelector = NSSelectorFromString(@"request");
-    if ([navigationAction respondsToSelector:requestSelector]) {
-        request = ((id (*)(id, SEL))objc_msgSend)(navigationAction, requestSelector);
+    if (![navigationAction respondsToSelector:requestSelector]) {
+        return nil;
     }
+    return ((id (*)(id, SEL))objc_msgSend)(navigationAction, requestSelector);
+}
 
-    SEL navigationTypeSelector = NSSelectorFromString(@"navigationType");
-    if ([navigationAction respondsToSelector:navigationTypeSelector]) {
-        navigationType = ((NSInteger (*)(id, SEL))objc_msgSend)(navigationAction, navigationTypeSelector);
+- (NSInteger)navigationTypeFromNavigationAction:(id)navigationAction {
+    if (navigationAction == nil) {
+        return 0;
     }
+    SEL navigationTypeSelector = NSSelectorFromString(@"navigationType");
+    if (![navigationAction respondsToSelector:navigationTypeSelector]) {
+        return 0;
+    }
+    return ((NSInteger (*)(id, SEL))objc_msgSend)(navigationAction, navigationTypeSelector);
+}
+
+- (void)webView:(id)webView decidePolicyForNavigationAction:(id)navigationAction decisionHandler:(void (^)(NSInteger policy))decisionHandler {
+    NSURLRequest *request = [self requestFromNavigationAction:navigationAction];
+    NSInteger navigationType = [self navigationTypeFromNavigationAction:navigationAction];
+    BOOL isMainFrameRequest = YES;
 
     SEL targetFrameSelector = NSSelectorFromString(@"targetFrame");
     if ([navigationAction respondsToSelector:targetFrameSelector]) {
@@ -960,6 +972,36 @@ static void BrowserInstallYouTubeCaptureUserScript(id configuration) {
     if (decisionHandler != nil) {
         decisionHandler(shouldAllow ? 1 : 0);
     }
+}
+
+- (id)webView:(id)webView
+createWebViewWithConfiguration:(id)configuration
+forNavigationAction:(id)navigationAction
+windowFeatures:(id)windowFeatures {
+    (void)webView;
+    (void)configuration;
+    (void)windowFeatures;
+
+    NSURLRequest *request = [self requestFromNavigationAction:navigationAction];
+    NSInteger navigationType = [self navigationTypeFromNavigationAction:navigationAction];
+
+    BOOL delegateHandlesNewTabRequests = [self.delegate respondsToSelector:@selector(webView:shouldCreateNewTabWithRequest:navigationType:)];
+    BOOL handledInTab = NO;
+    if (delegateHandlesNewTabRequests) {
+        handledInTab = [self.delegate webView:self shouldCreateNewTabWithRequest:request navigationType:navigationType];
+    }
+
+    if (!delegateHandlesNewTabRequests && !handledInTab && request != nil) {
+        BOOL shouldAllow = YES;
+        if ([self.delegate respondsToSelector:@selector(webView:shouldStartLoadWithRequest:navigationType:)]) {
+            shouldAllow = [self.delegate webView:self shouldStartLoadWithRequest:request navigationType:navigationType];
+        }
+        if (shouldAllow) {
+            [self loadRequest:request];
+        }
+    }
+
+    return nil;
 }
 
 + (id)defaultWebsiteDataStore {

@@ -137,21 +137,14 @@ static NSString * const kEditableElementSelector = @"input, textarea, select, [c
         return @"false";
     }
 
-    NSInteger pointX = (NSInteger)llround(point.x);
-    NSInteger pointY = (NSInteger)llround(point.y);
-    NSString *script = [NSString stringWithFormat:
-                        @"(function(){"
-                        "var element = document.elementFromPoint(%ld, %ld);"
-                        "while (element) {"
-                            "if (element.matches && element.matches(\"%@\")) { return 'true'; }"
-                            "element = element.parentElement;"
-                        "}"
-                        "return 'false';"
-                        "})()",
-                        (long)pointX,
-                        (long)pointY,
-                        kInteractiveElementSelector];
-    return [webView stringByEvaluatingJavaScriptFromString:script] ?: @"false";
+    return [self evaluateResolvedElementJavaScriptAtPoint:point
+                                                  webView:webView
+                                                     body:@"var candidate = interactiveElement || resolvedElement;"
+                                                          "while (candidate) {"
+                                                              "if (candidate.matches && candidate.matches(interactiveSelector)) { return 'true'; }"
+                                                              "candidate = candidate.parentElement;"
+                                                          "}"
+                                                          "return 'false';"];
 }
 
 - (NSString *)javaScriptEscapedString:(NSString *)string {
@@ -237,6 +230,34 @@ static NSString * const kEditableElementSelector = @"input, textarea, select, [c
                                                                            "title: video.getAttribute('title') || video.getAttribute('aria-label') || document.title || '',"
                                                                            "tagName: video.tagName ? video.tagName.toLowerCase() : '',"
                                                                            "paused: !!video.paused"
+                                                                       "});"];
+    return [self JSONObjectFromJavaScriptString:result];
+}
+
+- (NSDictionary *)linkInfoAtDOMPoint:(CGPoint)point
+                              webView:(BrowserWebView *)webView {
+    NSString *result = [self evaluateResolvedElementJavaScriptAtPoint:point
+                                                               webView:webView
+                                                                  body:@"function browserAbsoluteURL(url) {"
+                                                                       "if (!url) { return ''; }"
+                                                                       "try { return String(new URL(url, document.baseURI).toString()); } catch (error) { return String(url); }"
+                                                                       "}"
+                                                                       "var element = interactiveElement || resolvedElement;"
+                                                                       "if (!element) { return ''; }"
+                                                                       "var link = null;"
+                                                                       "if (element.closest) {"
+                                                                           "link = element.closest('a[href]');"
+                                                                       "}"
+                                                                       "if (!link && element.tagName && element.tagName.toLowerCase() === 'a') {"
+                                                                           "link = element;"
+                                                                       "}"
+                                                                       "if (!link) { return ''; }"
+                                                                       "var href = link.href || (link.getAttribute ? (link.getAttribute('href') || '') : '');"
+                                                                       "if (!href) { return ''; }"
+                                                                       "var target = link.getAttribute ? (link.getAttribute('target') || '') : '';"
+                                                                       "return JSON.stringify({"
+                                                                           "href: browserAbsoluteURL(href),"
+                                                                           "target: String(target || '').toLowerCase()"
                                                                        "});"];
     return [self JSONObjectFromJavaScriptString:result];
 }

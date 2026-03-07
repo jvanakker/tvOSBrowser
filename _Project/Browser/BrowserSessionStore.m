@@ -1,5 +1,6 @@
 #import "BrowserSessionStore.h"
 
+#import "BrowserNavigationService.h"
 #import "BrowserTabViewModel.h"
 #import "BrowserViewModel.h"
 
@@ -7,6 +8,7 @@ static NSString * const kBrowserSessionDefaultsKey = @"BrowserSession";
 static NSString * const kBrowserSessionTabsKey = @"tabs";
 static NSString * const kBrowserSessionActiveTabIndexKey = @"activeTabIndex";
 static NSString * const kBrowserSessionVersionKey = @"version";
+static NSString * const kBrowserSavedURLToReopenDefaultsKey = @"savedURLtoReopen";
 static NSNumber *BrowserSessionVersion(void) {
     return @1;
 }
@@ -73,6 +75,21 @@ static NSNumber *BrowserSessionVersion(void) {
     }
 
     return nil;
+}
+
+- (NSURLRequest *)consumeSavedURLToReopenRequestWithNavigationService:(BrowserNavigationService *)navigationService {
+    NSString *savedURLString = [[NSUserDefaults standardUserDefaults] stringForKey:kBrowserSavedURLToReopenDefaultsKey];
+    if (savedURLString.length == 0) {
+        return nil;
+    }
+
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:kBrowserSavedURLToReopenDefaultsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    if (navigationService == nil) {
+        return nil;
+    }
+    return [navigationService requestForURLString:savedURLString];
 }
 
 @end

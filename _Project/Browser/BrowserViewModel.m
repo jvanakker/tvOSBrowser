@@ -6,6 +6,7 @@ static NSUInteger const kDefaultTextFontSize = 100;
 static NSUInteger const kMinimumTextFontSize = 50;
 static NSUInteger const kMaximumTextFontSize = 200;
 static NSUInteger const kMaximumTabCount = 5;
+static NSString * const kEnableFullscreenVideoPlaybackDefaultsKey = @"EnableFullscreenVideoPlayback";
 
 @implementation BrowserViewModel
 
@@ -23,6 +24,7 @@ static NSUInteger const kMaximumTabCount = 5;
         } else {
             _textFontSize = kDefaultTextFontSize;
         }
+        _fullscreenVideoPlaybackEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableFullscreenVideoPlaybackDefaultsKey];
     }
     return self;
 }
@@ -108,6 +110,12 @@ static NSUInteger const kMaximumTabCount = 5;
     textFontSize = MIN(kMaximumTextFontSize, MAX(kMinimumTextFontSize, textFontSize));
     _textFontSize = textFontSize;
     [[NSUserDefaults standardUserDefaults] setObject:@(textFontSize) forKey:@"TextFontSize"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (void)setFullscreenVideoPlaybackEnabled:(BOOL)fullscreenVideoPlaybackEnabled {
+    _fullscreenVideoPlaybackEnabled = fullscreenVideoPlaybackEnabled;
+    [[NSUserDefaults standardUserDefaults] setBool:fullscreenVideoPlaybackEnabled forKey:kEnableFullscreenVideoPlaybackDefaultsKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 

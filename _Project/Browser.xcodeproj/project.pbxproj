@@ -94,7 +94,7 @@
 		B002B86F1BAE420500C744AF /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		B002B8711BAE420500C744AF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B002B8731BAE420500C744AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B0F6B4611BAEBF9900E2F26B /* README.mdown */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = ../README.mdown; sourceTree = "<group>"; };
+		B0F6B4611BAEBF9900E2F26B /* ../README.mdown */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = ../README.mdown; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -245,7 +245,7 @@
 		B002B8591BAE420500C744AF = {
 			isa = PBXGroup;
 			children = (
-				B0F6B4611BAEBF9900E2F26B /* README.mdown */,
+				B0F6B4611BAEBF9900E2F26B /* ../README.mdown */,
 				B002B8641BAE420500C744AF /* Browser */,
 				B002B8631BAE420500C744AF /* Products */,
 				9675E1FA20855F6500A4A84A /* Frameworks */,
@@ -376,7 +376,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 			shellPath = /bin/sh;
-			shellScript = "echo \"Versioning is controlled by MARKETING_VERSION/CURRENT_PROJECT_VERSION.\"";
+			shellScript = "echo \"Versioning is controlled by MARKETING_VERSION/CURRENT_PROJECT_VERSION.\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

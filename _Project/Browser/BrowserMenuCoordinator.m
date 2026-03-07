@@ -261,6 +261,32 @@ typedef void (^BrowserAdvancedMenuItemHandler)(void);
     } completion:nil];
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+
+    if (!self.isBeingDismissed || self.dismissalInProgress) {
+        return;
+    }
+
+    self.panelTrailingConstraint.constant = self.panelWidth + 32.0;
+    id<UIViewControllerTransitionCoordinator> coordinator = self.transitionCoordinator;
+    if (coordinator != nil) {
+        [coordinator animateAlongsideTransition:^(__unused id<UIViewControllerTransitionCoordinatorContext> context) {
+            self.dimView.alpha = 0.0;
+            [self.view layoutIfNeeded];
+        } completion:nil];
+        return;
+    }
+
+    [UIView animateWithDuration:0.22
+                          delay:0.0
+                        options:UIViewAnimationOptionCurveEaseIn
+                     animations:^{
+        self.dimView.alpha = 0.0;
+        [self.view layoutIfNeeded];
+    } completion:nil];
+}
+
 - (void)dismissMenuWithCompletion:(void (^)(void))completion {
     if (self.dismissalInProgress) {
         return;
