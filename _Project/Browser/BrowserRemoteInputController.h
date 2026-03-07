@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)browserRemoteInputControllerTabOverviewContainsPoint:(CGPoint)point;
 - (BOOL)browserRemoteInputControllerHandleTabOverviewSelectionAtPoint:(CGPoint)point;
 - (void)browserRemoteInputControllerDismissTabOverview;
+- (void)browserRemoteInputControllerHandleTabOverviewAlternateAction;
 - (void)browserRemoteInputControllerHandlePrimaryAction;
 - (void)browserRemoteInputControllerHandleMenuPress;
 - (void)browserRemoteInputControllerHandlePlayPausePress;

@@ -8,6 +8,8 @@
 #import "BrowserViewModel.h"
 #import "BrowserWebView.h"
 
+static CGFloat const kThumbnailStagingOffset = 4096.0;
+
 @interface BrowserTabCoordinator ()
 
 @property (nonatomic, weak) id<BrowserTabCoordinatorHost> host;
@@ -23,6 +25,7 @@
 @property (nonatomic, weak) id webViewDelegate;
 @property (nonatomic) BOOL scrollViewAllowBounces;
 @property (nonatomic) NSMutableDictionary<NSString *, BrowserWebView *> *webViewsByTabIdentifier;
+@property (nonatomic) UIView *thumbnailStagingView;
 @property (nonatomic, readwrite, nullable) BrowserWebView *activeWebView;
 
 @end
@@ -57,6 +60,7 @@
         _scrollViewAllowBounces = scrollViewAllowBounces;
         _webViewsByTabIdentifier = [NSMutableDictionary dictionary];
         [_preferencesStore ensureUserAgentConsistency];
+        [self ensureThumbnailStagingView];
     }
     return self;
 }
@@ -107,6 +111,81 @@
     } else {
         self.activeWebView.frame = self.rootView.bounds;
     }
+}
+
+- (CGSize)thumbnailViewportSize {
+    CGFloat width = CGRectGetWidth(self.rootView.bounds);
+    CGFloat height = CGRectGetHeight(self.rootView.bounds) - self.topMenuBrowserOffset;
+    return CGSizeMake(MAX(width, 1.0), MAX(height, 1.0));
+}
+
+- (void)ensureThumbnailStagingView {
+    if (self.thumbnailStagingView != nil || self.rootView == nil) {
+        return;
+    }
+
+    CGSize viewportSize = [self thumbnailViewportSize];
+    UIView *stagingView = [[UIView alloc] initWithFrame:CGRectMake(kThumbnailStagingOffset,
+                                                                   0.0,
+                                                                   viewportSize.width,
+                                                                   viewportSize.height)];
+    stagingView.backgroundColor = UIColor.clearColor;
+    stagingView.userInteractionEnabled = NO;
+    stagingView.clipsToBounds = YES;
+    [self.rootView addSubview:stagingView];
+    self.thumbnailStagingView = stagingView;
+}
+
+- (void)updateThumbnailStagingViewFrame {
+    [self ensureThumbnailStagingView];
+    if (self.thumbnailStagingView == nil) {
+        return;
+    }
+
+    CGSize viewportSize = [self thumbnailViewportSize];
+    self.thumbnailStagingView.frame = CGRectMake(kThumbnailStagingOffset,
+                                                 0.0,
+                                                 viewportSize.width,
+                                                 viewportSize.height);
+}
+
+- (void)prepareWebViewLayoutForSnapshot:(BrowserWebView *)webView {
+    if (webView == nil) {
+        return;
+    }
+
+    if (webView.superview == self.thumbnailStagingView) {
+        webView.frame = self.thumbnailStagingView.bounds;
+    }
+    [webView setNeedsLayout];
+    [webView layoutIfNeeded];
+
+    UIScrollView *scrollView = webView.scrollView;
+    [scrollView setNeedsLayout];
+    [scrollView layoutIfNeeded];
+    [self.rootView setNeedsLayout];
+    [self.rootView layoutIfNeeded];
+}
+
+- (void)parkWebViewForThumbnailing:(BrowserWebView *)webView {
+    if (webView == nil) {
+        return;
+    }
+
+    [self updateThumbnailStagingViewFrame];
+    webView.userInteractionEnabled = NO;
+    UIScrollView *scrollView = webView.scrollView;
+    scrollView.scrollEnabled = NO;
+    scrollView.bounces = self.scrollViewAllowBounces;
+    if (webView.superview != self.thumbnailStagingView) {
+        [webView removeFromSuperview];
+        [self.thumbnailStagingView addSubview:webView];
+    }
+    webView.frame = self.thumbnailStagingView.bounds;
+}
+
+- (BOOL)isWebViewStaged:(BrowserWebView *)webView {
+    return webView != nil && webView.superview == self.thumbnailStagingView;
 }
 
 - (BrowserWebView *)createConfiguredWebView {
@@ -172,7 +251,7 @@
     if (savedReopenRequest != nil) {
         [self.activeWebView loadRequest:savedReopenRequest];
     } else if (self.activeWebView.request == nil) {
-        [self loadStoredContentForTab:self.activeTab];
+        [self loadStoredContentForTab:self.activeTab webView:self.activeWebView fallbackToHomePage:YES];
     }
 }
 
@@ -211,12 +290,18 @@
         return;
     }
 
+    [self updateThumbnailStagingViewFrame];
     for (BrowserTabViewModel *candidate in self.viewModel.tabs) {
-        [self.webViewsByTabIdentifier[candidate.identifier] removeFromSuperview];
+        BrowserWebView *candidateWebView = self.webViewsByTabIdentifier[candidate.identifier];
+        if (candidateWebView == nil || candidateWebView == activeWebView) {
+            continue;
+        }
+        [self parkWebViewForThumbnailing:candidateWebView];
     }
 
     self.activeWebView = activeWebView;
     [self.topMenuView.loadingSpinner stopAnimating];
+    [self.activeWebView removeFromSuperview];
     [self.browserContainerView addSubview:self.activeWebView];
     [self updateTopNavAndWebView];
 
@@ -258,21 +343,32 @@
     [self.sessionStore saveSessionForViewModel:self.viewModel];
 }
 
-- (void)loadStoredContentForTab:(BrowserTabViewModel *)tab {
-    if (tab == nil) {
-        [self loadHomePage];
+- (void)loadStoredContentForTab:(BrowserTabViewModel *)tab
+                        webView:(BrowserWebView *)webView
+             fallbackToHomePage:(BOOL)fallbackToHomePage {
+    if (webView == nil) {
         return;
     }
 
     NSString *URLString = tab.URLString.length > 0 ? tab.URLString : tab.requestURL;
     if (URLString.length == 0) {
-        [self loadHomePage];
+        if (fallbackToHomePage) {
+            NSURLRequest *homePageRequest = [self.navigationService homePageRequest];
+            if (homePageRequest != nil) {
+                [webView loadRequest:homePageRequest];
+            }
+        }
         return;
     }
 
     NSURLRequest *request = [self.navigationService requestForURLString:URLString];
     if (request != nil) {
-        [self.activeWebView loadRequest:request];
+        [webView loadRequest:request];
+    } else if (fallbackToHomePage) {
+        NSURLRequest *homePageRequest = [self.navigationService homePageRequest];
+        if (homePageRequest != nil) {
+            [webView loadRequest:homePageRequest];
+        }
     }
 }
 
@@ -312,6 +408,7 @@
         return;
     }
 
+    [self prepareWebViewLayoutForSnapshot:webView];
     UIGraphicsBeginImageContextWithOptions(webView.bounds.size, YES, 0.0);
     [webView drawViewHierarchyInRect:webView.bounds afterScreenUpdates:NO];
     UIImage *snapshotImage = UIGraphicsGetImageFromCurrentImageContext();
@@ -324,6 +421,31 @@
 
 - (void)captureSnapshotForCurrentTab {
     [self captureSnapshotForTab:self.activeTab];
+}
+
+- (void)prepareTabOverviewThumbnails {
+    [self updateThumbnailStagingViewFrame];
+
+    for (BrowserTabViewModel *tab in self.viewModel.tabs) {
+        BrowserWebView *webView = self.webViewsByTabIdentifier[tab.identifier];
+        if (tab == self.activeTab) {
+            [self captureSnapshotForTab:tab];
+            continue;
+        }
+
+        if (webView == nil) {
+            webView = [self createConfiguredWebView];
+            self.webViewsByTabIdentifier[tab.identifier] = webView;
+        }
+
+        [self parkWebViewForThumbnailing:webView];
+        if (webView.request == nil) {
+            [self loadStoredContentForTab:tab webView:webView fallbackToHomePage:NO];
+            continue;
+        }
+
+        [self captureSnapshotForTab:tab];
+    }
 }
 
 - (void)showMaxTabsAlert {
@@ -385,7 +507,7 @@
     [self initWebView];
     [self.rootView bringSubviewToFront:self.cursorView];
     if (self.activeWebView.request == nil) {
-        [self loadStoredContentForTab:self.activeTab];
+        [self loadStoredContentForTab:self.activeTab webView:self.activeWebView fallbackToHomePage:YES];
     }
     [self persistSession];
 }
@@ -409,7 +531,7 @@
     if (closingActiveTab) {
         [self initWebView];
         if (self.activeWebView.request == nil) {
-            [self loadStoredContentForTab:self.activeTab];
+            [self loadStoredContentForTab:self.activeTab webView:self.activeWebView fallbackToHomePage:YES];
         }
     }
 
@@ -526,6 +648,8 @@
 
     if (tab == self.activeTab) {
         [self refreshActiveTabUI];
+    } else if ([self isWebViewStaged:webView]) {
+        [webView pauseAllMediaPlayback];
     }
     [self restoreSavedScrollOffsetForTab:tab webView:webView];
     if (!tab.needsScrollRestore) {

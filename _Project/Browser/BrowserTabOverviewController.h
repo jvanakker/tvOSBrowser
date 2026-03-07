@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (BOOL)browserTabOverviewControllerCursorModeEnabled;
 - (void)browserTabOverviewControllerSetCursorModeEnabled:(BOOL)enabled;
+- (void)browserTabOverviewControllerPresentViewController:(UIViewController *)viewController;
 - (void)browserTabOverviewControllerCreateNewTabLoadingHomePage:(BOOL)loadHomePage;
 - (void)browserTabOverviewControllerSwitchToTabAtIndex:(NSInteger)tabIndex;
 - (void)browserTabOverviewControllerCloseTabAtIndex:(NSInteger)tabIndex;
@@ -32,6 +33,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)show;
 - (void)dismiss;
 - (void)reload;
+- (void)updateCardAtIndex:(NSInteger)tabIndex;
+- (void)handleAlternateAction;
 - (BOOL)containsPoint:(CGPoint)viewPoint;
 - (BOOL)handleSelectionAtPoint:(CGPoint)viewPoint;
 

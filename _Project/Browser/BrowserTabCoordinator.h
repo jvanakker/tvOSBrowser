@@ -51,6 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)closeTabAtIndex:(NSInteger)tabIndex;
 - (void)recreateActiveWebViewPreservingCurrentURL;
 - (void)captureSnapshotForCurrentTab;
+- (void)prepareTabOverviewThumbnails;
 - (void)persistSession;
 - (void)handleWebViewPanGesture:(UIPanGestureRecognizer *)gestureRecognizer;
 - (void)webViewDidStartLoad:(id)webView;

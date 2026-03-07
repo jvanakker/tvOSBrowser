@@ -100,7 +100,7 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
     scrollView.scrollEnabled = shouldAllowWebInteraction;
     self.manualScrollPanRecognizer.enabled = shouldAllowWebInteraction;
     [self.host browserRemoteInputControllerSetWebInteractionEnabled:shouldAllowWebInteraction];
-    self.cursorView.hidden = [self.host browserRemoteInputControllerTabOverviewVisible] ? NO : !cursorModeEnabled;
+    self.cursorView.hidden = !cursorModeEnabled || [self.host browserRemoteInputControllerTabOverviewVisible];
     if (!wasCursorModeEnabled && cursorModeEnabled) {
         [self.host browserRemoteInputControllerPersistSession];
     }
@@ -290,6 +290,17 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
 
     UIViewController *presentedViewController = [self.host browserRemoteInputControllerPresentedViewController];
     if (presentedViewController != nil && ![presentedViewController isKindOfClass:[UIAlertController class]]) {
+        if ([self.host browserRemoteInputControllerTabOverviewVisible]) {
+            if (press.type == UIPressTypeMenu) {
+                [self.host browserRemoteInputControllerDismissTabOverview];
+                return YES;
+            }
+            if (press.type == UIPressTypePlayPause) {
+                [self.host browserRemoteInputControllerHandleTabOverviewAlternateAction];
+                return YES;
+            }
+            return NO;
+        }
         if (press.type == UIPressTypeMenu) {
             [presentedViewController dismissViewControllerAnimated:YES completion:nil];
             return YES;
@@ -328,7 +339,10 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
 - (BOOL)handleTouchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     (void)touches;
     (void)event;
-    if (!self.cursorModeEnabled && ![self.host browserRemoteInputControllerTabOverviewVisible]) {
+    if ([self.host browserRemoteInputControllerTabOverviewVisible]) {
+        return NO;
+    }
+    if (!self.cursorModeEnabled) {
         return NO;
     }
     self.lastTouchLocation = CGPointMake(-1, -1);
@@ -337,7 +351,10 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
 
 - (BOOL)handleTouchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     (void)event;
-    if (!self.cursorModeEnabled && ![self.host browserRemoteInputControllerTabOverviewVisible]) {
+    if ([self.host browserRemoteInputControllerTabOverviewVisible]) {
+        return NO;
+    }
+    if (!self.cursorModeEnabled) {
         return NO;
     }
 

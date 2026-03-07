@@ -440,7 +440,7 @@ static UIColor *kTextColor(void) {
 }
 
 - (void)browserShowTabOverview {
-    [self.tabCoordinator captureSnapshotForCurrentTab];
+    [self.tabCoordinator prepareTabOverviewThumbnails];
     [self.tabOverviewController show];
 }
 
@@ -526,6 +526,10 @@ static UIColor *kTextColor(void) {
     [self.remoteInputController setCursorModeEnabled:enabled];
 }
 
+- (void)browserTabOverviewControllerPresentViewController:(UIViewController *)viewController {
+    [self presentViewController:viewController animated:YES completion:nil];
+}
+
 - (void)browserTabOverviewControllerCreateNewTabLoadingHomePage:(BOOL)loadHomePage {
     [self.tabCoordinator createNewTabLoadingHomePage:loadHomePage];
 }
@@ -572,6 +576,10 @@ static UIColor *kTextColor(void) {
 
 - (void)browserRemoteInputControllerDismissTabOverview {
     [self.tabOverviewController dismiss];
+}
+
+- (void)browserRemoteInputControllerHandleTabOverviewAlternateAction {
+    [self.tabOverviewController handleAlternateAction];
 }
 
 - (void)browserRemoteInputControllerHandlePrimaryAction {
@@ -651,6 +659,20 @@ static UIColor *kTextColor(void) {
 
 - (void)webViewDidFinishLoad:(id)webView {
     [self.tabCoordinator webViewDidFinishLoad:webView];
+    if (self.tabOverviewController.visible) {
+        BrowserTabViewModel *tab = [self.tabCoordinator tabForWebView:webView];
+        NSInteger tabIndex = tab != nil ? [self.viewModel.tabs indexOfObject:tab] : NSNotFound;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (!self.tabOverviewController.visible) {
+                return;
+            }
+            if (tabIndex != NSNotFound) {
+                [self.tabOverviewController updateCardAtIndex:tabIndex];
+            } else {
+                [self.tabOverviewController reload];
+            }
+        });
+    }
 }
 
 - (void)webView:(id)webView didFailLoadWithError:(NSError *)error {
