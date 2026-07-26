@@ -79,4 +79,29 @@
     [self saveCookiesToDefaults];
 }
 
+#pragma mark - UIWindowSceneDelegate
+
+// tvOS 26 and later require the UIScene life cycle, so the UIApplicationDelegate
+// callbacks above no longer fire. The scene equivalents keep cookie persistence working.
+
+- (void)sceneWillResignActive:(UIScene *)scene {
+    [self saveCookiesToDefaults];
+}
+
+- (void)sceneDidEnterBackground:(UIScene *)scene {
+    [self saveCookiesToDefaults];
+}
+
+- (void)sceneWillEnterForeground:(UIScene *)scene {
+    [self restoreCookiesFromDefaults];
+}
+
+- (void)sceneDidBecomeActive:(UIScene *)scene {
+    [self restoreCookiesFromDefaults];
+}
+
+- (void)sceneDidDisconnect:(UIScene *)scene {
+    [self saveCookiesToDefaults];
+}
+
 @end
