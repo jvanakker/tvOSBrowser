@@ -20,6 +20,10 @@
 #import "BrowserViewModel.h"
 #import "ViewController.h"
 
+#import <QuartzCore/QuartzCore.h>
+
+extern BOOL BrowserIsDeliveringEvent(void);
+
 static NSString * const kBrowserGlobalSelectPressEndedNotification = @"BrowserGlobalSelectPressEndedNotification";
 
 static UIColor *kTextColor(void) {
@@ -46,6 +50,9 @@ static UIColor *kTextColor(void) {
 @property (nonatomic) BOOL displayedHintsOnLaunch;
 @property (nonatomic) BOOL scrollViewAllowBounces;
 @property (nonatomic, getter=isTopBarFocusActive) BOOL topBarFocusActive;
+@property (nonatomic, copy) NSString *cachedHoverState;
+@property (nonatomic) BOOL hoverRefreshScheduled;
+@property (nonatomic) CFTimeInterval lastHoverRefreshTime;
 
 @end
 
@@ -697,8 +704,52 @@ static UIColor *kTextColor(void) {
     if (webPoint.y < 0) {
         return @"false";
     }
+
+    // This is called from touchesMoved:, i.e. from inside UIKit event delivery, where querying the
+    // page synchronously would spin the run loop and re-enter -[UIApplication sendEvent:]. Answer
+    // from the last known value and refresh it on a later turn of the run loop, once the event has
+    // finished being delivered and blocking is safe again.
+    if (BrowserIsDeliveringEvent()) {
+        [self browserScheduleHoverStateRefresh];
+        return self.cachedHoverState ?: @"false";
+    }
+
     CGPoint domPoint = [self browserDOMPointForCursor];
-    return [self.pageActionCoordinator hoverStateAtDOMPoint:domPoint webView:self.webview];
+    NSString *state = [self.pageActionCoordinator hoverStateAtDOMPoint:domPoint webView:self.webview];
+    self.cachedHoverState = state;
+    return state;
+}
+
+- (void)browserScheduleHoverStateRefresh {
+    // One refresh in flight at a time, and no more than ten a second: the query costs a round trip
+    // to the web content process and the cursor only needs to keep up with the eye.
+    if (self.hoverRefreshScheduled) {
+        return;
+    }
+    CFTimeInterval now = CACurrentMediaTime();
+    if ((now - self.lastHoverRefreshTime) < 0.1) {
+        return;
+    }
+
+    self.hoverRefreshScheduled = YES;
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        typeof(self) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+        strongSelf.hoverRefreshScheduled = NO;
+        strongSelf.lastHoverRefreshTime = CACurrentMediaTime();
+        if (strongSelf.webview.request == nil || !strongSelf.remoteInputController.cursorModeEnabled) {
+            return;
+        }
+
+        CGPoint domPoint = [strongSelf browserDOMPointForCursor];
+        NSString *state = [strongSelf.pageActionCoordinator hoverStateAtDOMPoint:domPoint webView:strongSelf.webview];
+        if (state.length > 0) {
+            strongSelf.cachedHoverState = state;
+        }
+    });
 }
 
 - (void)browserRemoteInputControllerSetWebInteractionEnabled:(BOOL)enabled {

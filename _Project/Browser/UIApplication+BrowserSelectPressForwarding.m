@@ -4,6 +4,15 @@
 #import <objc/runtime.h>
 
 NSString * const BrowserGlobalSelectPressEndedNotification = @"BrowserGlobalSelectPressEndedNotification";
+
+// Depth of -[UIApplication sendEvent:] on the current stack. Anything that would spin the run
+// loop must not do so while an event is being delivered: spinning dispatches the next event and
+// re-enters sendEvent:, which UIKit traps on (EXC_BREAKPOINT) from tvOS 27 onwards.
+static NSInteger sBrowserSendEventDepth = 0;
+
+BOOL BrowserIsDeliveringEvent(void) {
+    return sBrowserSendEventDepth > 0;
+}
 static BOOL sBrowserNativeScrubTracking = NO;
 static CGFloat sBrowserNativePendingScrubPixels = 0.0;
 static CGPoint sBrowserNativeLastTouchLocation = {0, 0};
@@ -112,6 +121,15 @@ static UIViewController *BrowserFindPresentedNativeVideoPlayerViewController(UIA
 }
 
 - (void)browser_sendEvent:(UIEvent *)event {
+    sBrowserSendEventDepth += 1;
+    @try {
+        [self browser_deliverEvent:event];
+    } @finally {
+        sBrowserSendEventDepth -= 1;
+    }
+}
+
+- (void)browser_deliverEvent:(UIEvent *)event {
     Class nativeVideoPlayerClass = NSClassFromString(@"BrowserNativeVideoPlayerViewController");
     UIViewController *nativeVideoPlayerViewController = BrowserFindPresentedNativeVideoPlayerViewController(self, nativeVideoPlayerClass);
 

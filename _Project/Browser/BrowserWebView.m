@@ -31,8 +31,17 @@ static void BrowserEnsureWebKitRuntimeLoaded(void) {
     });
 }
 
+// Defined in UIApplication+BrowserSelectPressForwarding.m.
+extern BOOL BrowserIsDeliveringEvent(void);
+
+// Longest the main thread will ever spin waiting for the web content process. WebKit runs the
+// page out of process, so a busy page can leave a completion handler uncalled; without a bound
+// the main thread spins forever and the watchdog kills the app.
+static NSTimeInterval const kBrowserRunLoopPumpTimeout = 2.0;
+
 static void BrowserPumpRunLoopUntil(BOOL *done) {
-    while (!*done) {
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:kBrowserRunLoopPumpTimeout];
+    while (!*done && [deadline timeIntervalSinceNow] > 0.0) {
         @autoreleasepool {
             [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
         }
@@ -661,6 +670,13 @@ static void BrowserInstallYouTubeCaptureUserScript(id configuration) {
 
     SEL selector = NSSelectorFromString(@"evaluateJavaScript:completionHandler:");
     if (![self.runtimeWebView respondsToSelector:selector]) {
+        return nil;
+    }
+
+    // Spinning the run loop here would dispatch the next UIEvent and re-enter
+    // -[UIApplication sendEvent:] while the current one is still on the stack, which UIKit traps
+    // on. Callers reached from event delivery must use a cached value instead of blocking.
+    if (BrowserIsDeliveringEvent()) {
         return nil;
     }
 
