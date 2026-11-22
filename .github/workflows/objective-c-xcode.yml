@@ -12,15 +12,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build unsigned IPA
         run: |
-          PROJ=$(ls -d *.xcodeproj | head -1)
+          PROJ="_Project/Browser.xcodeproj"
           xcodebuild -list -project "$PROJ"
           SCHEME=$(xcodebuild -list -json -project "$PROJ" | ruby -e "require 'json'; puts JSON.parse(STDIN.read)['project']['schemes'][0]")
+          echo "Using scheme: $SCHEME"
           xcodebuild -project "$PROJ" -scheme "$SCHEME" \
             -sdk appletvos -configuration Release \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             CONFIGURATION_BUILD_DIR="$PWD/build" build
           mkdir Payload
-          cp -R build/*.app Payload/
+          cp -R "$(find build -maxdepth 1 -name '*.app' | head -1)" Payload/
           zip -r tvOSBrowser.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
