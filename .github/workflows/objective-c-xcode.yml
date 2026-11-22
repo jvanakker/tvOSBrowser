@@ -1,0 +1,28 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned IPA
+        run: |
+          PROJ=$(ls -d *.xcodeproj | head -1)
+          xcodebuild -list -project "$PROJ"
+          SCHEME=$(xcodebuild -list -json -project "$PROJ" | ruby -e "require 'json'; puts JSON.parse(STDIN.read)['project']['schemes'][0]")
+          xcodebuild -project "$PROJ" -scheme "$SCHEME" \
+            -sdk appletvos -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CONFIGURATION_BUILD_DIR="$PWD/build" build
+          mkdir Payload
+          cp -R build/*.app Payload/
+          zip -r tvOSBrowser.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tvOSBrowser-ipa
+          path: tvOSBrowser.ipa
