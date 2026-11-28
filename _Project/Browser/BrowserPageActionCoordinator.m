@@ -62,26 +62,32 @@ static UIColor *BrowserPageActionTextColor(void) {
 - (void)presentEditableFieldPromptForFieldType:(NSString *)fieldType
                                          point:(CGPoint)point
                                        webView:(BrowserWebView *)webView {
-    NSString *fieldTitle = [self.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
-                                                                                         webView:webView
-                                                                                            body:@"var target = browserEditableTarget();"
-                                                                                                 "if (!target) { return ''; }"
-                                                                                                 "return target.title || target.getAttribute('aria-label') || target.name || target.placeholder || '';"];
-    if ([fieldTitle isEqualToString:@""]) {
-        fieldTitle = fieldType;
-    }
-    NSString *placeholder = [self.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
+    NSString *editID = NSUUID.UUID.UUIDString;
+    NSString *metadataScript = [NSString stringWithFormat:
+        @"var target = browserEditableTarget();"
+         "if (!target || target.disabled || target.readOnly) return '';"
+         "window.__browserKeyboardEdit = { id: '%@', element: target };"
+         "var label = target.labels && target.labels.length ? target.labels[0].textContent.trim() : '';"
+         "var hint = target.getAttribute('aria-label') || target.placeholder || '';"
+         "var completion = (target.autocomplete || '').toLowerCase().split(' ').filter(Boolean);"
+         "return JSON.stringify({ title: label || target.title || hint || target.name || '',"
+         "  placeholder: hint, value: 'value' in target ? target.value : target.textContent,"
+         "  completion: completion, submit: !!(target.form && target.form.hasAttribute('onsubmit')) });", editID];
+    NSString *metadataJSON = [self.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
                                                                                           webView:webView
-                                                                                             body:@"var target = browserEditableTarget();"
-                                                                                                  "if (!target) { return ''; }"
-                                                                                                  "return target.placeholder || target.getAttribute('aria-label') || '';"];
-    if ([placeholder isEqualToString:@""]) {
-        placeholder = [fieldTitle isEqualToString:fieldType] ? @"Text Input" : [NSString stringWithFormat:@"%@ Input", fieldTitle];
+                                                                                             body:metadataScript];
+    NSData *data = [metadataJSON dataUsingEncoding:NSUTF8StringEncoding];
+    NSDictionary *metadata = data.length ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    if (![metadata isKindOfClass:NSDictionary.class]) {
+        return;
     }
-    NSString *testedFormResponse = [self.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
-                                                                                                 webView:webView
-                                                                                                    body:@"var target = browserEditableTarget();"
-                                                                                                         "return (target && target.form && target.form.hasAttribute('onsubmit')) ? 'true' : 'false';"];
+    NSString *fieldTitle = [metadata[@"title"] length] ? metadata[@"title"] : fieldType;
+    NSString *placeholder = [metadata[@"placeholder"] length] ? metadata[@"placeholder"] : fieldTitle;
+    NSArray *completion = metadata[@"completion"];
+    BOOL email = [fieldType isEqualToString:@"email"] || [completion containsObject:@"email"] ||
+                 [fieldTitle caseInsensitiveCompare:@"email"] == NSOrderedSame;
+    BOOL username = [completion containsObject:@"username"];
+    BOOL password = [fieldType isEqualToString:@"password"];
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"Input Text"
                                                                              message:[fieldTitle capitalizedString]
                                                                       preferredStyle:UIAlertControllerStyleAlert];
@@ -90,7 +96,7 @@ static UIColor *BrowserPageActionTextColor(void) {
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
         if ([fieldType isEqualToString:@"url"]) {
             textField.keyboardType = UIKeyboardTypeURL;
-        } else if ([fieldType isEqualToString:@"email"]) {
+        } else if (email) {
             textField.keyboardType = UIKeyboardTypeEmailAddress;
         } else if ([fieldType isEqualToString:@"tel"] ||
                    [fieldType isEqualToString:@"number"] ||
@@ -102,57 +108,54 @@ static UIColor *BrowserPageActionTextColor(void) {
             textField.keyboardType = UIKeyboardTypeDefault;
         }
         textField.placeholder = [placeholder capitalizedString];
-        if ([fieldType isEqualToString:@"password"]) {
+        if (password) {
             textField.secureTextEntry = YES;
+            textField.textContentType = [completion containsObject:@"new-password"] ? UITextContentTypeNewPassword : UITextContentTypePassword;
+        } else if (username) {
+            textField.textContentType = UITextContentTypeUsername;
+        } else if (email) {
+            textField.textContentType = UITextContentTypeEmailAddress;
         }
-        textField.text = [weakSelf.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
-                                                                                           webView:webView
-                                                                                              body:@"var target = browserEditableTarget();"
-                                                                                                   "if (!target) { return ''; }"
-                                                                                                   "if (typeof target.value !== 'undefined') { return target.value; }"
-                                                                                                   "return target.textContent || '';"];
+        if (email || username || password) {
+            textField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+            textField.autocorrectionType = UITextAutocorrectionTypeNo;
+            textField.smartQuotesType = UITextSmartQuotesTypeNo;
+            textField.smartDashesType = UITextSmartDashesTypeNo;
+        }
+        textField.text = metadata[@"value"];
         textField.textColor = BrowserPageActionTextColor();
         [textField setReturnKeyType:UIReturnKeyDone];
     }];
 
-    UIAlertAction *submitAction = [UIAlertAction actionWithTitle:@"Submit"
-                                                           style:UIAlertActionStyleDefault
-                                                         handler:^(__unused UIAlertAction *action) {
-        UITextField *inputTextField = alertController.textFields.firstObject;
-        NSString *escapedText = [weakSelf.domInteractionService javaScriptEscapedString:inputTextField.text];
-        [weakSelf.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
-                                                                         webView:webView
-                                                                            body:[NSString stringWithFormat:@"var target = browserEditableTarget();"
-                                                                                  "if (!target) { return 'false'; }"
-                                                                                  "if (typeof target.value !== 'undefined') { target.value = '%@'; }"
-                                                                                  "else { target.textContent = '%@'; }"
-                                                                                  "if (target.dispatchEvent) {"
-                                                                                      "target.dispatchEvent(new Event('input', { bubbles: true }));"
-                                                                                      "target.dispatchEvent(new Event('change', { bubbles: true }));"
-                                                                                  "}"
-                                                                                  "if (target.form) { target.form.submit(); }"
-                                                                                  "return 'true';", escapedText, escapedText]];
-    }];
-    UIAlertAction *doneAction = [UIAlertAction actionWithTitle:@"Done"
-                                                         style:UIAlertActionStyleDefault
-                                                       handler:^(__unused UIAlertAction *action) {
-        UITextField *inputTextField = alertController.textFields.firstObject;
-        NSString *escapedText = [weakSelf.domInteractionService javaScriptEscapedString:inputTextField.text];
-        [weakSelf.domInteractionService evaluateEditableElementJavaScriptAtPoint:point
-                                                                         webView:webView
-                                                                            body:[NSString stringWithFormat:@"var target = browserEditableTarget();"
-                                                                                  "if (!target) { return 'false'; }"
-                                                                                  "if (typeof target.value !== 'undefined') { target.value = '%@'; }"
-                                                                                  "else { target.textContent = '%@'; }"
-                                                                                  "if (target.dispatchEvent) {"
-                                                                                      "target.dispatchEvent(new Event('input', { bubbles: true }));"
-                                                                                      "target.dispatchEvent(new Event('change', { bubbles: true }));"
-                                                                                  "}"
-                                                                                  "return 'true';", escapedText, escapedText]];
-    }];
-    [alertController addAction:doneAction];
-    if ([testedFormResponse isEqualToString:@"true"]) {
-        [alertController addAction:submitAction];
+    __weak UIAlertController *weakAlert = alertController;
+    void (^finishEditing)(BOOL) = ^(BOOL submit) {
+        NSString *value = weakAlert.textFields.firstObject.text ?: @"";
+        NSString *escapedText = [weakSelf.domInteractionService javaScriptEscapedString:value];
+        NSString *commitScript = [NSString stringWithFormat:
+            @"(function(){"
+             "var edit = window.__browserKeyboardEdit;"
+             "if (!edit || edit.id !== '%@' || !edit.element.isConnected) return false;"
+             "delete window.__browserKeyboardEdit;"
+             "var target = edit.element;"
+             "if (target.disabled || target.readOnly) return false;"
+             "var value = '%@';"
+             "if ('value' in target) { target.value = value; } else { target.textContent = value; }"
+             "target.dispatchEvent(new Event('input', { bubbles: true }));"
+             "target.dispatchEvent(new Event('change', { bubbles: true }));"
+             "if (%@ && target.form && target.isConnected) {"
+             "  var form = target.form;"
+             "  var button = Array.from(form.elements).find(el => el.type === 'submit');"
+             "  if (button) { button.click(); } else if (form.requestSubmit) { form.requestSubmit(); }"
+             "}"
+             "return true;"
+             "})()", editID, escapedText, submit ? @"true" : @"false"];
+        [webView stringByEvaluatingJavaScriptFromString:commitScript];
+    };
+    [alertController addAction:[UIAlertAction actionWithTitle:@"Done" style:UIAlertActionStyleDefault
+                                                     handler:^(__unused UIAlertAction *action) { finishEditing(NO); }]];
+    if ([metadata[@"submit"] boolValue]) {
+        [alertController addAction:[UIAlertAction actionWithTitle:@"Submit" style:UIAlertActionStyleDefault
+                                                         handler:^(__unused UIAlertAction *action) { finishEditing(YES); }]];
     }
     [alertController addAction:[UIAlertAction actionWithTitle:nil style:UIAlertActionStyleCancel handler:nil]];
     [self.host browserPageActionCoordinatorPresentViewController:alertController];
