@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder.AppleTV.Storyboard" version="3.0" toolsVersion="15505" targetRuntime="AppleTV" propertyAccessControl="none" useAutolayout="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+<document type="com.apple.InterfaceBuilder.AppleTV.Storyboard" version="3.0" toolsVersion="15505" targetRuntime="AppleTV" propertyAccessControl="none" useAutolayout="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
     <device id="appleTV" appearance="light"/>
     <dependencies>
         <deployment identifier="tvOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15509"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -11,20 +12,16 @@
         <scene sceneID="tne-QT-ifu">
             <objects>
                 <viewController extendedLayoutIncludesOpaqueBars="YES" id="BYZ-38-t0r" customClass="ViewController" sceneMemberID="viewController">
-                    <layoutGuides>
-                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
-                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
-                    </layoutGuides>
                     <view key="view" autoresizesSubviews="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="1920" height="1080"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="YrF-k3-Nha" userLabel="BrowserContainerView">
-                                <rect key="frame" x="0.0" y="0.0" width="1920" height="1080"/>
+                            <view clipsSubviews="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="YrF-k3-Nha" userLabel="BrowserContainerView">
+                                <rect key="frame" x="90" y="60" width="1740" height="960"/>
                                 <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </view>
                             <visualEffectView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="LDW-dE-x05" customClass="BrowserTopBarView">
-                                <rect key="frame" x="0.0" y="0.0" width="1920" height="94"/>
+                                <rect key="frame" x="90" y="60" width="1740" height="94"/>
                                 <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" insetsLayoutMarginsFromSafeArea="NO" id="vWz-fJ-GDT">
                                     <rect key="frame" x="0.0" y="0.0" width="1920" height="94"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -123,15 +120,16 @@
                             </visualEffectView>
                         </subviews>
                         <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.0" colorSpace="custom" customColorSpace="sRGB"/>
+                        <viewLayoutGuide key="safeArea" id="saf-BR-001"/>
                         <color key="tintColor" red="0.3161621094" green="0.54801559710000003" blue="1" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                         <constraints>
-                            <constraint firstItem="wfy-db-euE" firstAttribute="top" secondItem="LDW-dE-x05" secondAttribute="bottom" constant="926" id="2Kz-a1-hea"/>
-                            <constraint firstAttribute="bottom" secondItem="YrF-k3-Nha" secondAttribute="bottom" id="5Dj-hl-Kyg"/>
-                            <constraint firstItem="LDW-dE-x05" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="5fY-aP-JQ1"/>
-                            <constraint firstItem="LDW-dE-x05" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" id="8Wg-us-D8U"/>
+                            <constraint firstItem="LDW-dE-x05" firstAttribute="height" constant="94" id="2Kz-a1-hea"/>
+                            <constraint firstItem="saf-BR-001" firstAttribute="bottom" secondItem="YrF-k3-Nha" secondAttribute="bottom" id="5Dj-hl-Kyg"/>
+                            <constraint firstItem="LDW-dE-x05" firstAttribute="leading" secondItem="saf-BR-001" secondAttribute="leading" id="5fY-aP-JQ1"/>
+                            <constraint firstItem="LDW-dE-x05" firstAttribute="top" secondItem="saf-BR-001" secondAttribute="top" id="8Wg-us-D8U"/>
                             <constraint firstItem="YrF-k3-Nha" firstAttribute="leading" secondItem="LDW-dE-x05" secondAttribute="leading" id="Sll-yU-qEf"/>
                             <constraint firstItem="YrF-k3-Nha" firstAttribute="trailing" secondItem="LDW-dE-x05" secondAttribute="trailing" id="Xvb-3R-NHX"/>
-                            <constraint firstAttribute="trailing" secondItem="LDW-dE-x05" secondAttribute="trailing" id="YgI-da-oNt"/>
+                            <constraint firstItem="saf-BR-001" firstAttribute="trailing" secondItem="LDW-dE-x05" secondAttribute="trailing" id="YgI-da-oNt"/>
                             <constraint firstItem="YrF-k3-Nha" firstAttribute="top" secondItem="LDW-dE-x05" secondAttribute="top" id="k2c-Za-kkI"/>
                         </constraints>
                         <edgeInsets key="layoutMargins" top="0.0" left="0.0" bottom="0.0" right="0.0"/>

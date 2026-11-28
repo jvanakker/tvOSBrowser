@@ -418,12 +418,9 @@ static NSString *BrowserPressPhaseString(UIPressPhase phase) {
             CGFloat yDiff = location.y - self.lastTouchLocation.y;
             CGRect rect = self.cursorView.frame;
 
-            if (rect.origin.x + xDiff >= 0 && rect.origin.x + xDiff <= 1920) {
-                rect.origin.x += xDiff;
-            }
-            if (rect.origin.y + yDiff >= 0 && rect.origin.y + yDiff <= 1080) {
-                rect.origin.y += yDiff;
-            }
+            CGRect area = self.rootView.safeAreaLayoutGuide.layoutFrame;
+            rect.origin.x = MIN(MAX(CGRectGetMinX(area), rect.origin.x + xDiff), CGRectGetMaxX(area) - 1);
+            rect.origin.y = MIN(MAX(CGRectGetMinY(area), rect.origin.y + yDiff), CGRectGetMaxY(area) - 1);
             self.cursorView.frame = rect;
             self.lastTouchLocation = location;
         }

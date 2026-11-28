@@ -99,24 +99,19 @@ static CGFloat const kThumbnailStagingOffset = 4096.0;
     [self updateTopNavAndWebView];
 }
 
+- (CGRect)browserViewport {
+    CGRect bounds = self.browserContainerView.bounds;
+    CGFloat top = MIN(CGRectGetHeight(bounds), self.topMenuBrowserOffset);
+    return UIEdgeInsetsInsetRect(bounds, UIEdgeInsetsMake(top, 0, 0, 0));
+}
+
 - (void)updateTopNavAndWebView {
-    if (self.activeWebView == nil) {
-        return;
-    }
-    if (self.topNavigationVisible) {
-        self.activeWebView.frame = CGRectMake(self.rootView.bounds.origin.x,
-                                              self.rootView.bounds.origin.y + self.topMenuBrowserOffset,
-                                              self.rootView.bounds.size.width,
-                                              self.rootView.bounds.size.height - self.topMenuBrowserOffset);
-    } else {
-        self.activeWebView.frame = self.rootView.bounds;
-    }
+    self.activeWebView.frame = self.browserViewport;
 }
 
 - (CGSize)thumbnailViewportSize {
-    CGFloat width = CGRectGetWidth(self.rootView.bounds);
-    CGFloat height = CGRectGetHeight(self.rootView.bounds) - self.topMenuBrowserOffset;
-    return CGSizeMake(MAX(width, 1.0), MAX(height, 1.0));
+    CGSize size = self.browserViewport.size;
+    return CGSizeMake(MAX(size.width, 1.0), MAX(size.height, 1.0));
 }
 
 - (void)ensureThumbnailStagingView {
@@ -191,8 +186,8 @@ static CGFloat const kThumbnailStagingOffset = 4096.0;
 - (BrowserWebView *)createConfiguredWebView {
     BrowserWebView *webView = [[BrowserWebView alloc] initWithUserAgent:self.preferencesStore.userAgent
                                             allowsInlineMediaPlayback:YES];
-    webView.translatesAutoresizingMaskIntoConstraints = NO;
-    webView.clipsToBounds = NO;
+    webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    webView.clipsToBounds = YES;
     webView.delegate = self.webViewDelegate;
     webView.layoutMargins = UIEdgeInsetsZero;
     webView.opaque = NO;

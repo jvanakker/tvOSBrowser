@@ -44,6 +44,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)restoreInitialStateOrCreateFirstTab;
 - (void)webViewDidAppear;
+- (void)updateTopNavAndWebView;
 - (void)loadHomePage;
 - (void)createNewTabLoadingHomePage:(BOOL)loadHomePage;
 - (BOOL)createNewTabWithRequest:(NSURLRequest *)request;

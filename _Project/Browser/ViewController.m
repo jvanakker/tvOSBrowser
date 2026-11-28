@@ -120,6 +120,11 @@ static UIColor *kTextColor(void) {
     [self.tabCoordinator restoreInitialStateOrCreateFirstTab];
 }
 
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self.tabCoordinator updateTopNavAndWebView];
+}
+
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [self.tabCoordinator webViewDidAppear];
